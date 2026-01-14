@@ -97,9 +97,7 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
 
       {/* Repeat Card */}
       <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 mb-6">
-        <h2 className="font-semibold text-[#1e293b] mb-1">
-          Repeat (내것으로 만들기)
-        </h2>
+        <h2 className="font-semibold text-[#1e293b] mb-1">Repeat</h2>
         {repeatCount === 0 ? (
           <p className="text-sm text-[#64748b]">No repeat items yet.</p>
         ) : (
