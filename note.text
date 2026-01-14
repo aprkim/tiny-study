@@ -1,0 +1,63 @@
+You are a senior front-end engineer.
+
+We have Tiny Study with:
+- Entries stored in localStorage (CRUD)
+- Repeat mode (/repeat) using repeatFlag + lastReviewedAt + correct/incorrect counts
+- Entry detail, add new, generate examples (stub)
+
+Now implement:
+(1) Settings for repetition scheduling
+(2) Export/Import sync (copy/paste JSON)
+
+A) SETTINGS PAGE
+- Add route: /settings
+- Add a Settings screen with a “Repetition” section and controls:
+  - dailyReviewSize: number (5/10/15/20), default 10
+  - minReviewGapHours: number (0/12/24/48), default 24
+  - autoMasterAfterStreak: number (0 disables; otherwise 3/5/7), default 5
+  - includeMasteredInReview: boolean, default false
+- Store settings in localStorage under key: tiny_study_settings_v1
+- Create types + helpers:
+  - src/types.ts add StudySettings type
+  - src/storage/settings.ts (or add to existing storage file) with getSettings() / updateSettings(patch)
+- UI: light mode, minimal Tailwind, max-w-md centered, accessible labels.
+
+B) APPLY SETTINGS TO REPEAT QUEUE
+- Update repeat selection logic on /repeat:
+  - include entries where repeatFlag=true
+  - exclude mastered unless includeMasteredInReview=true
+  - only include if lastReviewedAt missing OR now-lastReviewedAt >= minReviewGapHours
+  - sort: oldest reviewed first (missing first), then createdAt desc
+  - limit to dailyReviewSize
+- Auto-master logic:
+  - Track consecutiveCorrectStreak on Entry (add field if needed, default 0)
+  - On “I got it”: streak += 1
+  - On “Not yet”: streak = 0
+  - If autoMasterAfterStreak > 0 and streak >= threshold:
+      set masteredFlag=true and repeatFlag=false (or keep repeatFlag but masteredFlag true—choose simplest consistent behavior)
+
+C) EXPORT / IMPORT
+- Add “Data” section in Settings page:
+  - Export button: generates export JSON text that includes:
+      { version: 1, exportedAt, settings, entries, examples }
+  - Show a textarea with the JSON and a “Copy” button
+  - Import area:
+      textarea to paste JSON
+      “Import” button with confirmation
+      On import, replace localStorage data for entries/examples/settings
+      Validate version and basic shape; show friendly errors.
+- Add small warning text: “Anyone with this export text can read your data.”
+
+FILES TO OUTPUT (complete code for changed/new)
+- src/types.ts updates
+- settings storage helper file (new)
+- App route for /settings
+- New page: src/pages/Settings.tsx
+- Update Repeat page logic to use settings
+- Any small shared UI component needed (Toggle, Select) but keep minimal
+
+IMPORTANT
+- No external APIs, no backend, no auth.
+- Keep UI simple and consistent with TinyWins.
+- Provide complete working code.
+- After code, include quick “How to run” note.
