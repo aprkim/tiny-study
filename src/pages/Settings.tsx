@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { getApiKey, setApiKey, clearApiKey, hasApiKey } from "../lib/anthropic";
 
-interface SettingsProps {
-  onBack: () => void;
-}
-
-export default function Settings({ onBack }: SettingsProps) {
+export default function Settings() {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isKeySet, setIsKeySet] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -45,28 +41,10 @@ export default function Settings({ onBack }: SettingsProps) {
     : "";
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6">
+    <div className="max-w-md mx-auto px-4 py-6 pb-24">
       {/* Header */}
-      <header className="flex items-center gap-4 mb-8">
-        <button
-          onClick={onBack}
-          className="text-[#64748b] hover:text-[#1e293b] transition-colors"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-lg font-semibold text-[#1e293b]">Settings</h1>
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold text-[#1e293b]">Settings</h1>
       </header>
 
       <div className="space-y-6">
@@ -162,7 +140,7 @@ export default function Settings({ onBack }: SettingsProps) {
               <strong>Save + Explain:</strong> AI generates meaning and nuance for new entries
             </li>
             <li>
-              <strong>Generate Examples:</strong> AI creates 6 contextual example sentences
+              <strong>Generate Examples:</strong> AI creates 3 contextual example sentences
             </li>
             <li>
               <strong>Privacy:</strong> Your API key is stored locally in your browser

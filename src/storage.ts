@@ -94,6 +94,16 @@ export function getRepeatCount(): number {
   return getEntries().filter((e) => e.repeatFlag === true).length;
 }
 
+// ============ MASTERED ============
+
+export function getMasteredEntries(): Entry[] {
+  return getEntries().filter((e) => e.masteredFlag === true);
+}
+
+export function getMasteredCount(): number {
+  return getEntries().filter((e) => e.masteredFlag === true).length;
+}
+
 export function recordReview(id: string, correct: boolean): Entry | undefined {
   const entry = getEntryById(id);
   if (!entry) return undefined;

@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { Entry } from "../types";
-import { getEntries, getRepeatCount, searchEntries } from "../storage";
+import { getEntries, searchEntries, updateEntry } from "../storage";
 
 interface HomeProps {
   onAddNew: () => void;
   onSelectEntry: (id: string) => void;
-  onStartRepeat: () => void;
-  onSettings: () => void;
 }
 
 const typePillStyles: Record<string, string> = {
@@ -16,53 +14,55 @@ const typePillStyles: Record<string, string> = {
   sentence: "bg-[#E7F1EB] text-[#3F6B52]",
 };
 
-export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSettings }: HomeProps) {
+export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [repeatCount, setRepeatCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideMastered, setHideMastered] = useState(true);
 
   useEffect(() => {
     setEntries(getEntries());
-    setRepeatCount(getRepeatCount());
   }, []);
+
+  const handleRepeat = (e: React.MouseEvent, entryId: string) => {
+    e.stopPropagation();
+    const updated = updateEntry(entryId, { repeatFlag: true });
+    if (updated) {
+      // Move the entry to the bottom of the list
+      setEntries((prev) => {
+        const entry = prev.find((e) => e.id === entryId);
+        if (!entry) return prev;
+        const others = prev.filter((e) => e.id !== entryId);
+        return [...others, { ...entry, repeatFlag: true }];
+      });
+    }
+  };
+
+  const handleToggleMastered = (e: React.MouseEvent, entryId: string, currentMastered: boolean) => {
+    e.stopPropagation();
+    const updated = updateEntry(entryId, { masteredFlag: !currentMastered });
+    if (updated) {
+      setEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === entryId ? { ...entry, masteredFlag: !currentMastered } : entry
+        )
+      );
+    }
+  };
 
   const filteredEntries = (searchQuery ? searchEntries(searchQuery) : entries).filter(
     (entry) => !hideMastered || !entry.masteredFlag
   );
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6">
+    <div className="max-w-md mx-auto px-4 py-6 pb-24">
       <header className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-[#1e293b]">Tiny Study</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onSettings}
-            className="p-2 text-[#64748b] hover:text-[#1e293b] transition-colors"
-            title="Settings"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-            </svg>
-          </button>
-          <button
-            onClick={onAddNew}
-            className="px-4 py-2 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
-          >
-            Add New
-          </button>
-        </div>
+        <h1 className="text-2xl font-semibold text-[#1e293b]">Study</h1>
+        <button
+          onClick={onAddNew}
+          className="px-4 py-2 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
+        >
+          Add New
+        </button>
       </header>
 
       {/* Search */}
@@ -95,26 +95,6 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
         </label>
       </div>
 
-      {/* Repeat Card */}
-      <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 mb-6">
-        <h2 className="font-semibold text-[#1e293b] mb-1">Repeat</h2>
-        {repeatCount === 0 ? (
-          <p className="text-sm text-[#64748b]">No repeat items yet.</p>
-        ) : (
-          <>
-            <p className="text-sm text-[#64748b] mb-3">
-              {repeatCount} item{repeatCount !== 1 ? "s" : ""} to review
-            </p>
-            <button
-              onClick={onStartRepeat}
-              className="w-full px-4 py-2 bg-[#E7F1EB] text-[#3F6B52] rounded-lg font-medium hover:bg-[#d4e8dc] transition-colors"
-            >
-              Quick Review (2 min)
-            </button>
-          </>
-        )}
-      </div>
-
       {/* Entries List */}
       {entries.length === 0 ? (
         <div className="text-center py-16">
@@ -127,12 +107,10 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
       ) : (
         <ul className="space-y-3">
           {filteredEntries.map((entry) => (
-            <li key={entry.id}>
+            <li key={entry.id} className="bg-white border border-[#e2e8f0] rounded-lg overflow-hidden">
               <button
                 onClick={() => onSelectEntry(entry.id)}
-                className={`w-full text-left bg-white border border-[#e2e8f0] rounded-lg p-4 hover:border-[#dbe2ea] transition-colors ${
-                  entry.masteredFlag ? "opacity-50" : ""
-                }`}
+                className="w-full text-left p-4 hover:bg-[#f7f9f8] transition-colors"
               >
                 <div className="flex items-start gap-3">
                   <span
@@ -141,26 +119,7 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
                     {entry.type}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <p className="font-semibold text-[#1e293b]">{entry.term}</p>
-                      {entry.repeatFlag && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="#BF3143"
-                          className="shrink-0"
-                        >
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                      )}
-                      {entry.masteredFlag && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[#E7F1EB] text-[#3F6B52]">
-                          Mastered
-                        </span>
-                      )}
-                    </div>
+                    <p className="font-semibold text-[#1e293b]">{entry.term}</p>
                     {entry.sourceSentence && (
                       <p className="text-sm text-[#64748b] mt-1 truncate">
                         {entry.sourceSentence}
@@ -200,6 +159,24 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
                   </svg>
                 </div>
               </button>
+              <div className="px-4 pb-3 flex gap-2">
+                <button
+                  onClick={(e) => handleRepeat(e, entry.id)}
+                  className="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-[#f0f4f3] text-[#64748b] hover:bg-[#e2e8f0]"
+                >
+                  Repeat
+                </button>
+                <button
+                  onClick={(e) => handleToggleMastered(e, entry.id, entry.masteredFlag ?? false)}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    entry.masteredFlag
+                      ? "bg-[#E7F1EB] text-[#3F6B52]"
+                      : "bg-[#f0f4f3] text-[#64748b] hover:bg-[#e2e8f0]"
+                  }`}
+                >
+                  {entry.masteredFlag ? "Mastered" : "Mastered"}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Entry, GeneratedExample, ExampleStyle } from "../types";
+import { Entry, GeneratedExample } from "../types";
 import {
   getEntryById,
   updateEntry,
@@ -10,13 +10,11 @@ import {
   deleteExample,
 } from "../storage";
 import { generateExamples } from "../lib/generateExamples";
-import BottomSheet from "../components/BottomSheet";
 
 interface EntryDetailProps {
   entryId: string;
   onBack: () => void;
   onDeleted: () => void;
-  onEdit: () => void;
 }
 
 const typePillStyles: Record<string, string> = {
@@ -26,14 +24,6 @@ const typePillStyles: Record<string, string> = {
   sentence: "bg-[#E7F1EB] text-[#3F6B52]",
 };
 
-const styleOptions: { value: ExampleStyle; label: string }[] = [
-  { value: "neutral", label: "Neutral" },
-  { value: "casual", label: "Casual" },
-  { value: "formal", label: "Formal" },
-  { value: "work", label: "Work" },
-  { value: "daily", label: "Daily" },
-  { value: "short", label: "Short" },
-];
 
 function highlightTerm(sentence: string, term: string): React.ReactNode {
   const termLower = term.toLowerCase();
@@ -69,14 +59,11 @@ export default function EntryDetail({
   entryId,
   onBack,
   onDeleted,
-  onEdit,
 }: EntryDetailProps) {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [examples, setExamples] = useState<GeneratedExample[]>([]);
   const [showNuance, setShowNuance] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showStyleSheet, setShowStyleSheet] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState<ExampleStyle>("neutral");
   const [isGenerating, setIsGenerating] = useState(false);
 
   const loadEntry = () => {
@@ -116,13 +103,12 @@ export default function EntryDetail({
       const texts = await generateExamples({
         term: entry.term,
         type: entry.type,
-        style: selectedStyle,
+        style: "neutral",
         sourceSentence: entry.sourceSentence,
       });
 
-      const newExamples = addExamples(entryId, selectedStyle, texts);
+      const newExamples = addExamples(entryId, "neutral", texts);
       setExamples((prev) => [...prev, ...newExamples]);
-      setShowStyleSheet(false);
     } catch (error) {
       console.error("Failed to generate examples:", error);
     } finally {
@@ -139,11 +125,9 @@ export default function EntryDetail({
     );
   };
 
-  const handleAddToRepeat = () => {
-    const updated = updateEntry(entryId, { repeatFlag: true });
-    if (updated) {
-      setEntry(updated);
-    }
+  const handleMarkMastered = () => {
+    updateEntry(entryId, { masteredFlag: true });
+    onBack();
   };
 
   const handleDeleteExample = (exampleId: string) => {
@@ -284,10 +268,11 @@ export default function EntryDetail({
 
         {/* Generate Button */}
         <button
-          onClick={() => setShowStyleSheet(true)}
-          className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50"
         >
-          Generate Examples
+          {isGenerating ? "Generating..." : "Generate Examples"}
         </button>
 
         {/* Examples Section */}
@@ -305,10 +290,7 @@ export default function EntryDetail({
                   className="bg-white border border-[#e2e8f0] rounded-lg p-4"
                 >
                   <p className="text-[#1e293b] mb-3">{example.text}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#9CA3AF]">
-                      {example.style}
-                    </span>
+                  <div className="flex items-center justify-end">
                     <div className="flex items-center gap-2">
                       {/* Save Toggle */}
                       <button
@@ -323,16 +305,6 @@ export default function EntryDetail({
                       >
                         {example.savedFlag ? "Saved" : "Save"}
                       </button>
-
-                      {/* Add to Repeat */}
-                      {!entry.repeatFlag && (
-                        <button
-                          onClick={handleAddToRepeat}
-                          className="px-3 py-1 text-xs font-medium rounded-lg bg-[#FEF2F2] text-[#BF3143] hover:bg-[#fde8e8] transition-colors"
-                        >
-                          Add to Repeat
-                        </button>
-                      )}
 
                       {/* Delete */}
                       <button
@@ -362,53 +334,23 @@ export default function EntryDetail({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 pt-4">
-          <button
-            onClick={onEdit}
-            className="flex-1 px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors"
-          >
-            Edit
-          </button>
+        <div className="space-y-3 pt-4">
+          {!entry.masteredFlag && (
+            <button
+              onClick={handleMarkMastered}
+              className="w-full px-4 py-3 bg-[#E7F1EB] text-[#3F6B52] rounded-lg font-medium hover:bg-[#d4e8dc] transition-colors"
+            >
+              Mark as Mastered
+            </button>
+          )}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="flex-1 px-4 py-3 bg-[#FEF2F2] text-[#BF3143] rounded-lg font-medium hover:bg-[#fde8e8] transition-colors"
+            className="w-full px-4 py-3 bg-[#FEF2F2] text-[#BF3143] rounded-lg font-medium hover:bg-[#fde8e8] transition-colors"
           >
             Delete
           </button>
         </div>
       </div>
-
-      {/* Style Selection Bottom Sheet */}
-      <BottomSheet
-        isOpen={showStyleSheet}
-        onClose={() => setShowStyleSheet(false)}
-        title="Select Style"
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            {styleOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setSelectedStyle(option.value)}
-                className={`px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                  selectedStyle === option.value
-                    ? "bg-[#1e293b] text-white"
-                    : "bg-[#f0f4f3] text-[#1e293b] hover:bg-[#e2e8f0]"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50"
-          >
-            {isGenerating ? "Generating..." : "Generate"}
-          </button>
-        </div>
-      </BottomSheet>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
