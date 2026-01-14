@@ -392,7 +392,7 @@ export default function EntryDetail({
                 onClick={() => setSelectedStyle(option.value)}
                 className={`px-4 py-3 text-sm font-medium rounded-xl transition-colors ${
                   selectedStyle === option.value
-                    ? "bg-[#BF3143] text-white"
+                    ? "bg-[#1e293b] text-white"
                     : "bg-[#f0f4f3] text-[#1e293b] hover:bg-[#e2e8f0]"
                 }`}
               >
