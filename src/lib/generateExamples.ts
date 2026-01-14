@@ -82,13 +82,15 @@ Respond with a JSON array of exactly 6 strings, no additional text:
 }
 
 function parseExamples(response: string): string[] {
+  let examples: string[] = [];
+
   try {
     // Try to extract JSON array from the response
     const arrayMatch = response.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
       const parsed = JSON.parse(arrayMatch[0]);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.slice(0, 6).map((s) => String(s));
+        examples = parsed.slice(0, 6).map((s) => String(s));
       }
     }
   } catch {
@@ -96,16 +98,27 @@ function parseExamples(response: string): string[] {
   }
 
   // Fallback: split by newlines and filter
-  const lines = response
-    .split("\n")
-    .map((line) => line.replace(/^[\d\.\-\*]+\s*/, "").trim())
-    .filter((line) => line.length > 10 && line.length < 200);
+  if (examples.length === 0) {
+    const lines = response
+      .split("\n")
+      .map((line) => line.replace(/^[\d\.\-\*]+\s*/, "").trim())
+      .filter((line) => line.length > 10 && line.length < 200);
 
-  if (lines.length >= 3) {
-    return lines.slice(0, 6);
+    if (lines.length >= 3) {
+      examples = lines.slice(0, 6);
+    }
   }
 
-  return ["Could not generate examples. Please try again."];
+  if (examples.length === 0) {
+    return ["Could not generate examples. Please try again."];
+  }
+
+  // Ensure we always return exactly 6 examples
+  while (examples.length < 6) {
+    examples.push(`[Example ${examples.length + 1} - try regenerating]`);
+  }
+
+  return examples.slice(0, 6);
 }
 
 function getFallbackExamples(term: string, type: EntryType): string[] {
@@ -126,5 +139,6 @@ function getFallbackExamples(term: string, type: EntryType): string[] {
     `Example 3: [${term} in a question form]`,
     `Example 4: [${term} in a casual conversation]`,
     `Example 5: [${term} in a formal setting]`,
+    `Example 6: [${term} with a different meaning or usage]`,
   ];
 }
