@@ -103,13 +103,13 @@ export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryPro
 
       <div className="space-y-6">
         {/* Segmented Control */}
-        <div className="flex gap-1 p-1 bg-[#f0f4f3] rounded-2xl">
+        <div className="flex gap-1 p-1 bg-[#f0f4f3] rounded-lg">
           {entryTypes.map((t) => (
             <button
               key={t}
               onClick={() => setType(t)}
               disabled={isExplaining}
-              className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl capitalize transition-colors ${
+              className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg capitalize transition-colors ${
                 type === t
                   ? "bg-white text-[#1e293b] shadow-sm"
                   : "text-[#64748b] hover:text-[#1e293b]"
@@ -134,7 +134,7 @@ export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryPro
             }}
             disabled={isExplaining}
             placeholder="Enter term..."
-            className={`w-full px-4 py-3 bg-white border rounded-2xl text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all ${
+            className={`w-full px-4 py-3 bg-white border rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all ${
               errors.term ? "border-[#BF3143]" : "border-[#e2e8f0]"
             } ${isExplaining ? "opacity-50" : ""}`}
           />
@@ -159,7 +159,7 @@ export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryPro
               disabled={isExplaining}
               placeholder="Enter the sentence where you found this word..."
               rows={3}
-              className={`w-full px-4 py-3 bg-white border rounded-2xl text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all resize-none ${
+              className={`w-full px-4 py-3 bg-white border rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all resize-none ${
                 errors.sourceSentence ? "border-[#BF3143]" : "border-[#e2e8f0]"
               } ${isExplaining ? "opacity-50" : ""}`}
             />
@@ -174,14 +174,14 @@ export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryPro
           <button
             onClick={handleSaveAndExplain}
             disabled={isExplaining}
-            className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-2xl font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isExplaining ? "Explaining..." : "Save + Explain"}
           </button>
           <button
             onClick={handleSave}
             disabled={isExplaining}
-            className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-2xl font-medium hover:bg-[#e2e8f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save Only
           </button>

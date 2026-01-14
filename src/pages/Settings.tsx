@@ -71,7 +71,7 @@ export default function Settings({ onBack }: SettingsProps) {
 
       <div className="space-y-6">
         {/* API Key Section */}
-        <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4">
+        <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
           <h2 className="font-semibold text-[#1e293b] mb-2">
             Anthropic API Key
           </h2>
@@ -91,7 +91,7 @@ export default function Settings({ onBack }: SettingsProps) {
           {isKeySet && !showKey ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="px-3 py-2 bg-[#E7F1EB] text-[#3F6B52] rounded-xl text-sm font-medium">
+                <span className="px-3 py-2 bg-[#E7F1EB] text-[#3F6B52] rounded-lg text-sm font-medium">
                   Key configured
                 </span>
                 <span className="text-sm text-[#64748b] font-mono">
@@ -101,13 +101,13 @@ export default function Settings({ onBack }: SettingsProps) {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowKey(true)}
-                  className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-xl text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
+                  className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-lg text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
                 >
                   Edit Key
                 </button>
                 <button
                   onClick={handleClear}
-                  className="px-4 py-2 bg-[#FEF2F2] text-[#BF3143] rounded-xl text-sm font-medium hover:bg-[#fde8e8] transition-colors"
+                  className="px-4 py-2 bg-[#FEF2F2] text-[#BF3143] rounded-lg text-sm font-medium hover:bg-[#fde8e8] transition-colors"
                 >
                   Remove Key
                 </button>
@@ -123,12 +123,12 @@ export default function Settings({ onBack }: SettingsProps) {
                   setSaveStatus("idle");
                 }}
                 placeholder="sk-ant-..."
-                className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-xl text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] font-mono text-sm"
+                className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] font-mono text-sm"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 bg-[#BF3143] text-white rounded-xl text-sm font-medium hover:bg-[#a52a3a] transition-colors"
+                  className="px-4 py-2 bg-[#BF3143] text-white rounded-lg text-sm font-medium hover:bg-[#a52a3a] transition-colors"
                 >
                   Save Key
                 </button>
@@ -138,7 +138,7 @@ export default function Settings({ onBack }: SettingsProps) {
                       setShowKey(false);
                       setApiKeyInput(getApiKey() || "");
                     }}
-                    className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-xl text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
+                    className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-lg text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
                   >
                     Cancel
                   </button>
@@ -155,7 +155,7 @@ export default function Settings({ onBack }: SettingsProps) {
         </div>
 
         {/* Info Section */}
-        <div className="bg-[#F7F5FA] border border-[#e2e8f0] rounded-2xl p-4">
+        <div className="bg-[#F7F5FA] border border-[#e2e8f0] rounded-lg p-4">
           <h3 className="font-medium text-[#6E6282] mb-2">How it works</h3>
           <ul className="text-sm text-[#64748b] space-y-2">
             <li>

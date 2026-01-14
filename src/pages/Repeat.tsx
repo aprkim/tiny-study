@@ -70,7 +70,7 @@ export default function Repeat({ onBack }: RepeatProps) {
           </p>
           <button
             onClick={onBack}
-            className="px-6 py-3 bg-[#BF3143] text-white rounded-2xl font-medium hover:bg-[#a52a3a] transition-colors"
+            className="px-6 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
           >
             Back to Home
           </button>
@@ -116,7 +116,7 @@ export default function Repeat({ onBack }: RepeatProps) {
 
       {/* Card */}
       {currentEntry && (
-        <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 mb-6">
+        <div className="bg-white border border-[#e2e8f0] rounded-lg p-6 mb-6">
           {/* Cloze sentence */}
           <p className="text-lg text-[#1e293b] leading-relaxed mb-6">
             {getClozeSentence(currentEntry)}
@@ -150,7 +150,7 @@ export default function Repeat({ onBack }: RepeatProps) {
       {!revealed ? (
         <button
           onClick={handleReveal}
-          className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-2xl font-medium hover:bg-[#a52a3a] transition-colors"
+          className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
         >
           Reveal
         </button>
@@ -158,13 +158,13 @@ export default function Repeat({ onBack }: RepeatProps) {
         <div className="flex gap-3">
           <button
             onClick={() => handleAnswer(false)}
-            className="flex-1 px-4 py-3 bg-[#FEF2F2] text-[#BF3143] rounded-2xl font-medium hover:bg-[#fde8e8] transition-colors"
+            className="flex-1 px-4 py-3 bg-[#FEF2F2] text-[#BF3143] rounded-lg font-medium hover:bg-[#fde8e8] transition-colors"
           >
             Not yet
           </button>
           <button
             onClick={() => handleAnswer(true)}
-            className="flex-1 px-4 py-3 bg-[#E7F1EB] text-[#3F6B52] rounded-2xl font-medium hover:bg-[#d4e8dc] transition-colors"
+            className="flex-1 px-4 py-3 bg-[#E7F1EB] text-[#3F6B52] rounded-lg font-medium hover:bg-[#d4e8dc] transition-colors"
           >
             I got it
           </button>

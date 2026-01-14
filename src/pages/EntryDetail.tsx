@@ -97,7 +97,7 @@ export default function EntryDetail({
         <p className="text-[#64748b] text-center py-16">Entry not found.</p>
         <button
           onClick={onBack}
-          className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-2xl font-medium"
+          className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium"
         >
           Go Back
         </button>
@@ -222,7 +222,7 @@ export default function EntryDetail({
         )}
 
         {/* Meaning */}
-        <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4">
+        <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
           <h3 className="text-sm font-medium text-[#64748b] mb-2">Meaning</h3>
           {entry.meaning ? (
             <p className="text-[#1e293b]">{entry.meaning}</p>
@@ -233,7 +233,7 @@ export default function EntryDetail({
 
         {/* Nuance (collapsible) */}
         {entry.nuance && (
-          <div className="bg-white border border-[#e2e8f0] rounded-2xl overflow-hidden">
+          <div className="bg-white border border-[#e2e8f0] rounded-lg overflow-hidden">
             <button
               onClick={() => setShowNuance(!showNuance)}
               className="w-full px-4 py-3 flex items-center justify-between text-left"
@@ -266,7 +266,7 @@ export default function EntryDetail({
 
         {/* Source Sentence */}
         {entry.sourceSentence && (
-          <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4">
+          <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
             <h3 className="text-sm font-medium text-[#64748b] mb-2">
               Source Sentence
             </h3>
@@ -285,7 +285,7 @@ export default function EntryDetail({
         {/* Generate Button */}
         <button
           onClick={() => setShowStyleSheet(true)}
-          className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-2xl font-medium hover:bg-[#a52a3a] transition-colors"
+          className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
         >
           Generate Examples
         </button>
@@ -302,7 +302,7 @@ export default function EntryDetail({
               {examples.map((example) => (
                 <li
                   key={example.id}
-                  className="bg-white border border-[#e2e8f0] rounded-2xl p-4"
+                  className="bg-white border border-[#e2e8f0] rounded-lg p-4"
                 >
                   <p className="text-[#1e293b] mb-3">{example.text}</p>
                   <div className="flex items-center justify-between">
@@ -365,13 +365,13 @@ export default function EntryDetail({
         <div className="flex gap-3 pt-4">
           <button
             onClick={onEdit}
-            className="flex-1 px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-2xl font-medium hover:bg-[#e2e8f0] transition-colors"
+            className="flex-1 px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors"
           >
             Edit
           </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="flex-1 px-4 py-3 bg-[#FEF2F2] text-[#BF3143] rounded-2xl font-medium hover:bg-[#fde8e8] transition-colors"
+            className="flex-1 px-4 py-3 bg-[#FEF2F2] text-[#BF3143] rounded-lg font-medium hover:bg-[#fde8e8] transition-colors"
           >
             Delete
           </button>
@@ -390,7 +390,7 @@ export default function EntryDetail({
               <button
                 key={option.value}
                 onClick={() => setSelectedStyle(option.value)}
-                className={`px-4 py-3 text-sm font-medium rounded-xl transition-colors ${
+                className={`px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   selectedStyle === option.value
                     ? "bg-[#1e293b] text-white"
                     : "bg-[#f0f4f3] text-[#1e293b] hover:bg-[#e2e8f0]"
@@ -403,7 +403,7 @@ export default function EntryDetail({
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-2xl font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50"
+            className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50"
           >
             {isGenerating ? "Generating..." : "Generate"}
           </button>
@@ -413,7 +413,7 @@ export default function EntryDetail({
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-[rgba(30,41,59,0.5)] flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 max-w-sm w-full">
+          <div className="bg-white border border-[#e2e8f0] rounded-lg p-6 max-w-sm w-full">
             <h3 className="text-lg font-semibold text-[#1e293b] mb-2">
               Delete Entry?
             </h3>
@@ -424,13 +424,13 @@ export default function EntryDetail({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-2xl font-medium"
+                className="flex-1 px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 px-4 py-3 bg-[#BF3143] text-white rounded-2xl font-medium"
+                className="flex-1 px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium"
               >
                 Delete
               </button>

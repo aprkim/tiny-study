@@ -58,7 +58,7 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
           </button>
           <button
             onClick={onAddNew}
-            className="px-4 py-2 bg-[#BF3143] text-white rounded-2xl font-medium hover:bg-[#a52a3a] transition-colors"
+            className="px-4 py-2 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
           >
             Add New
           </button>
@@ -72,7 +72,7 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search entries..."
-          className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-2xl text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143]"
+          className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143]"
         />
       </div>
 
@@ -96,7 +96,7 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
       </div>
 
       {/* Repeat Card */}
-      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 mb-6">
+      <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 mb-6">
         <h2 className="font-semibold text-[#1e293b] mb-1">Repeat</h2>
         {repeatCount === 0 ? (
           <p className="text-sm text-[#64748b]">No repeat items yet.</p>
@@ -107,7 +107,7 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
             </p>
             <button
               onClick={onStartRepeat}
-              className="w-full px-4 py-2 bg-[#E7F1EB] text-[#3F6B52] rounded-xl font-medium hover:bg-[#d4e8dc] transition-colors"
+              className="w-full px-4 py-2 bg-[#E7F1EB] text-[#3F6B52] rounded-lg font-medium hover:bg-[#d4e8dc] transition-colors"
             >
               Quick Review (2 min)
             </button>
@@ -130,7 +130,7 @@ export default function Home({ onAddNew, onSelectEntry, onStartRepeat, onSetting
             <li key={entry.id}>
               <button
                 onClick={() => onSelectEntry(entry.id)}
-                className={`w-full text-left bg-white border border-[#e2e8f0] rounded-2xl p-4 hover:border-[#dbe2ea] transition-colors ${
+                className={`w-full text-left bg-white border border-[#e2e8f0] rounded-lg p-4 hover:border-[#dbe2ea] transition-colors ${
                   entry.masteredFlag ? "opacity-50" : ""
                 }`}
               >

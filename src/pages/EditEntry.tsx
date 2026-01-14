@@ -44,7 +44,7 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
         <p className="text-[#64748b] text-center py-16">Entry not found.</p>
         <button
           onClick={onBack}
-          className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-2xl font-medium"
+          className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium"
         >
           Go Back
         </button>
@@ -134,12 +134,12 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
           <label className="block text-sm font-medium text-[#1e293b] mb-2">
             Type
           </label>
-          <div className="flex gap-1 p-1 bg-[#f0f4f3] rounded-2xl">
+          <div className="flex gap-1 p-1 bg-[#f0f4f3] rounded-lg">
             {entryTypes.map((t) => (
               <button
                 key={t}
                 onClick={() => setType(t)}
-                className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl capitalize transition-colors ${
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg capitalize transition-colors ${
                   type === t
                     ? "bg-white text-[#1e293b] shadow-sm"
                     : "text-[#64748b] hover:text-[#1e293b]"
@@ -163,7 +163,7 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
               setTerm(e.target.value);
               if (errors.term) setErrors((prev) => ({ ...prev, term: undefined }));
             }}
-            className={`w-full px-4 py-3 bg-white border rounded-2xl text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] ${
+            className={`w-full px-4 py-3 bg-white border rounded-lg text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] ${
               errors.term ? "border-[#BF3143]" : "border-[#e2e8f0]"
             }`}
           />
@@ -186,7 +186,7 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
                   setErrors((prev) => ({ ...prev, sourceSentence: undefined }));
               }}
               rows={2}
-              className={`w-full px-4 py-3 bg-white border rounded-2xl text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] resize-none ${
+              className={`w-full px-4 py-3 bg-white border rounded-lg text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] resize-none ${
                 errors.sourceSentence ? "border-[#BF3143]" : "border-[#e2e8f0]"
               }`}
             />
@@ -205,7 +205,7 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
             value={meaning}
             onChange={(e) => setMeaning(e.target.value)}
             rows={2}
-            className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-2xl text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] resize-none"
+            className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-lg text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] resize-none"
           />
         </div>
 
@@ -218,7 +218,7 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
             value={nuance}
             onChange={(e) => setNuance(e.target.value)}
             rows={2}
-            className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-2xl text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] resize-none"
+            className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-lg text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#BF3143] resize-none"
           />
         </div>
 
@@ -234,11 +234,11 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagKeyDown}
               placeholder="Add tag and press Enter"
-              className="flex-1 px-4 py-2 bg-white border border-[#e2e8f0] rounded-xl text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143]"
+              className="flex-1 px-4 py-2 bg-white border border-[#e2e8f0] rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143]"
             />
             <button
               onClick={handleAddTag}
-              className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-xl font-medium hover:bg-[#e2e8f0] transition-colors"
+              className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors"
             >
               Add
             </button>
@@ -301,13 +301,13 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
         <div className="flex gap-3 pt-4">
           <button
             onClick={onBack}
-            className="flex-1 px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-2xl font-medium hover:bg-[#e2e8f0] transition-colors"
+            className="flex-1 px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 px-4 py-3 bg-[#BF3143] text-white rounded-2xl font-medium hover:bg-[#a52a3a] transition-colors"
+            className="flex-1 px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
           >
             Save
           </button>
