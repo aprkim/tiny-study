@@ -1,14 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getApiKey, setApiKey, clearApiKey, hasApiKey } from "../lib/anthropic";
 import { useAuth } from "../contexts/AuthContext";
+import { getEntries, getAllExamplesForExport, saveEntries, saveExamples } from "../storage";
+import { Entry, GeneratedExample } from "../types";
+
+interface BackupData {
+  entries: Entry[];
+  examples: GeneratedExample[];
+}
 
 export default function Settings() {
   const { user, signOut } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isKeySet, setIsKeySet] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [signingOut, setSigningOut] = useState(false);
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "info" | "success" | "error";
+  }>({ isOpen: false, title: "", message: "", type: "info" });
+
+  const showModal = (title: string, message: string, type: "info" | "success" | "error" = "info") => {
+    setModal({ isOpen: true, title, message, type });
+  };
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -25,7 +43,6 @@ export default function Settings() {
     setIsKeySet(hasApiKey());
     const existingKey = getApiKey();
     if (existingKey) {
-      // Show masked version
       setApiKeyInput(existingKey);
     }
   }, []);
@@ -50,6 +67,84 @@ export default function Settings() {
     setSaveStatus("idle");
   };
 
+  const handleExport = async () => {
+    try {
+      const [entries, examples] = await Promise.all([
+        getEntries(),
+        getAllExamplesForExport(),
+      ]);
+      const data: BackupData = { entries, examples };
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tiny-study-backup-${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+      showModal("Error", "Failed to export data", "error");
+    }
+  };
+
+  const handleImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const raw = JSON.parse(event.target?.result as string);
+
+        let importedEntries: Entry[] = [];
+        let importedExamples: GeneratedExample[] = [];
+
+        if (raw.entries || raw.examples) {
+          importedEntries = raw.entries || [];
+          importedExamples = raw.examples || [];
+        } else {
+          showModal("Error", "Invalid file format", "error");
+          return;
+        }
+
+        // Merge entries
+        const existingEntries = await getEntries();
+        const mergedEntries = [...existingEntries];
+        for (const entry of importedEntries) {
+          if (!mergedEntries.find((e) => e.id === entry.id)) {
+            mergedEntries.push(entry);
+          }
+        }
+        await saveEntries(mergedEntries);
+
+        // Merge examples
+        const existingExamples = await getAllExamplesForExport();
+        const mergedExamples = [...existingExamples];
+        for (const example of importedExamples) {
+          if (!mergedExamples.find((ex) => ex.id === example.id)) {
+            mergedExamples.push(example);
+          }
+        }
+        await saveExamples(mergedExamples);
+
+        showModal(
+          "Import Successful",
+          `Imported ${importedEntries.length} entries and ${importedExamples.length} examples`,
+          "success"
+        );
+      } catch {
+        showModal("Error", "Failed to import: Invalid JSON file", "error");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
   const maskedKey = apiKeyInput
     ? `${apiKeyInput.slice(0, 7)}...${apiKeyInput.slice(-4)}`
     : "";
@@ -62,6 +157,48 @@ export default function Settings() {
       </header>
 
       <div className="space-y-6">
+        {/* Data Section */}
+        <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
+          <h2 className="font-semibold text-[#1e293b] mb-4">Data</h2>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[#1e293b]">Export Data</span>
+                <p className="text-sm text-[#64748b]">Download all entries as JSON</p>
+              </div>
+              <button
+                onClick={handleExport}
+                className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-lg text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
+              >
+                Export
+              </button>
+            </div>
+
+            <div className="border-t border-[#e2e8f0]" />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[#1e293b]">Import Data</span>
+                <p className="text-sm text-[#64748b]">Restore from backup file</p>
+              </div>
+              <button
+                onClick={handleImport}
+                className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-lg text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
+              >
+                Import
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* API Key Section */}
         <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
           <h2 className="font-semibold text-[#1e293b] mb-2">
@@ -176,7 +313,38 @@ export default function Settings() {
             {signingOut ? "Signing out..." : "Sign Out"}
           </button>
         </div>
+
+        {/* Version */}
+        <p className="text-center text-[#64748b] text-sm">
+          Tiny Study by TinyWins
+        </p>
       </div>
+
+      {/* Modal */}
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <h2
+              className={`text-xl font-bold mb-2 ${
+                modal.type === "error"
+                  ? "text-[#BF3143]"
+                  : modal.type === "success"
+                  ? "text-[#3F6B52]"
+                  : "text-[#1e293b]"
+              }`}
+            >
+              {modal.title}
+            </h2>
+            <p className="text-[#64748b] mb-4">{modal.message}</p>
+            <button
+              onClick={() => setModal({ ...modal, isOpen: false })}
+              className="w-full px-4 py-2 bg-[#BF3143] text-white rounded-lg text-sm font-medium hover:bg-[#a52a3a] transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -231,6 +231,33 @@ export async function deleteExample(id: string): Promise<boolean> {
   return true;
 }
 
+// ============ BULK OPERATIONS (for import/export) ============
+
+export async function getAllExamplesForExport(): Promise<GeneratedExample[]> {
+  const userId = getUserId();
+  const q = query(collection(db, "users", userId, "examples"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => doc.data() as GeneratedExample);
+}
+
+export async function saveEntries(entries: Entry[]): Promise<void> {
+  const userId = getUserId();
+  const batch = writeBatch(db);
+  for (const entry of entries) {
+    batch.set(doc(db, "users", userId, "entries", entry.id), entry);
+  }
+  await batch.commit();
+}
+
+export async function saveExamples(examples: GeneratedExample[]): Promise<void> {
+  const userId = getUserId();
+  const batch = writeBatch(db);
+  for (const example of examples) {
+    batch.set(doc(db, "users", userId, "examples", example.id), example);
+  }
+  await batch.commit();
+}
+
 // ============ SEARCH ============
 
 export async function searchEntries(searchQuery: string): Promise<Entry[]> {
