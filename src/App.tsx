@@ -5,11 +5,14 @@ import EntryDetail from "./pages/EntryDetail";
 import EditEntry from "./pages/EditEntry";
 import Settings from "./pages/Settings";
 import Mastered from "./pages/Mastered";
+import Login from "./pages/Login";
+import { useAuth } from "./contexts/AuthContext";
 
 type Page = "home" | "new" | "detail" | "edit" | "settings" | "mastered";
 type Tab = "study" | "mastered" | "settings";
 
 function App() {
+  const { user, loading } = useAuth();
   const [page, setPage] = useState<Page>("home");
   const [activeTab, setActiveTab] = useState<Tab>("study");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -56,6 +59,20 @@ function App() {
 
   // Check if we should show bottom tabs (not on detail pages like new, detail, edit)
   const showBottomTabs = page === "home" || page === "mastered" || page === "settings";
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f9f8]">
+        <p className="text-[#64748b]">Loading...</p>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!user) {
+    return <Login onSuccess={() => setPage("home")} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f9f8]">

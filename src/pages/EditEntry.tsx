@@ -12,6 +12,7 @@ const entryTypes: EntryType[] = ["word", "idiom", "expression", "sentence"];
 
 export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) {
   const [entry, setEntry] = useState<Entry | null>(null);
+  const [loading, setLoading] = useState(true);
   const [type, setType] = useState<EntryType>("word");
   const [term, setTerm] = useState("");
   const [sourceSentence, setSourceSentence] = useState("");
@@ -24,19 +25,37 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
   const [errors, setErrors] = useState<{ term?: string; sourceSentence?: string }>({});
 
   useEffect(() => {
-    const e = getEntryById(entryId);
-    if (e) {
-      setEntry(e);
-      setType(e.type);
-      setTerm(e.term);
-      setSourceSentence(e.sourceSentence || "");
-      setMeaning(e.meaning || "");
-      setNuance(e.nuance || "");
-      setTags(e.tags || []);
-      setRepeatFlag(e.repeatFlag || false);
-      setMasteredFlag(e.masteredFlag || false);
-    }
+    const loadEntry = async () => {
+      setLoading(true);
+      try {
+        const e = await getEntryById(entryId);
+        if (e) {
+          setEntry(e);
+          setType(e.type);
+          setTerm(e.term);
+          setSourceSentence(e.sourceSentence || "");
+          setMeaning(e.meaning || "");
+          setNuance(e.nuance || "");
+          setTags(e.tags || []);
+          setRepeatFlag(e.repeatFlag || false);
+          setMasteredFlag(e.masteredFlag || false);
+        }
+      } catch (error) {
+        console.error("Failed to load entry:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEntry();
   }, [entryId]);
+
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-6">
+        <p className="text-[#64748b] text-center py-16">Loading...</p>
+      </div>
+    );
+  }
 
   if (!entry) {
     return (
@@ -67,10 +86,10 @@ export default function EditEntry({ entryId, onBack, onSaved }: EditEntryProps) 
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
 
-    updateEntry(entryId, {
+    await updateEntry(entryId, {
       type,
       term: term.trim(),
       sourceSentence: sourceSentence.trim() || undefined,

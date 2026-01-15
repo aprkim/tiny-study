@@ -1,11 +1,25 @@
 import { useState, useEffect } from "react";
 import { getApiKey, setApiKey, clearApiKey, hasApiKey } from "../lib/anthropic";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Settings() {
+  const { user, signOut } = useAuth();
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isKeySet, setIsKeySet] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Sign out error:", error);
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   useEffect(() => {
     setIsKeySet(hasApiKey());
@@ -146,6 +160,21 @@ export default function Settings() {
               <strong>Privacy:</strong> Your API key is stored locally in your browser
             </li>
           </ul>
+        </div>
+
+        {/* Account Section */}
+        <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
+          <h2 className="font-semibold text-[#1e293b] mb-2">Account</h2>
+          <p className="text-sm text-[#64748b] mb-4">
+            Signed in as {user?.email}
+          </p>
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="px-4 py-2 bg-[#FEF2F2] text-[#BF3143] rounded-lg text-sm font-medium hover:bg-[#fde8e8] transition-colors disabled:opacity-50"
+          >
+            {signingOut ? "Signing out..." : "Sign Out"}
+          </button>
         </div>
       </div>
     </div>

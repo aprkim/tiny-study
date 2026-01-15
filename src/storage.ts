@@ -1,24 +1,38 @@
 import { Entry, GeneratedExample, ExampleStyle } from "./types";
+import { auth, db } from "./lib/firebase";
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  writeBatch,
+} from "firebase/firestore";
 
-const STORAGE_KEY = "tiny-study-entries";
-const EXAMPLES_KEY = "tiny-study-examples";
+function getUserId(): string {
+  const userId = auth.currentUser?.uid;
+  if (!userId) throw new Error("User not authenticated");
+  return userId;
+}
 
 // ============ ENTRIES ============
 
-export function getEntries(): Entry[] {
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (!data) return [];
-  try {
-    return JSON.parse(data) as Entry[];
-  } catch {
-    return [];
-  }
+export async function getEntries(): Promise<Entry[]> {
+  const userId = getUserId();
+  const q = query(
+    collection(db, "users", userId, "entries"),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => ({ ...doc.data() } as Entry));
 }
 
-export function saveEntry(entry: Entry): void {
-  const entries = getEntries();
-  entries.unshift(entry);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+export async function saveEntry(entry: Entry): Promise<void> {
+  const userId = getUserId();
+  await setDoc(doc(db, "users", userId, "entries", entry.id), entry);
 }
 
 export function generateId(): string {
@@ -33,51 +47,77 @@ export function generateId(): string {
   });
 }
 
-export function getEntryById(id: string): Entry | undefined {
-  const entries = getEntries();
-  return entries.find((e) => e.id === id);
+export async function getEntryById(id: string): Promise<Entry | undefined> {
+  const userId = getUserId();
+  const docSnap = await getDoc(doc(db, "users", userId, "entries", id));
+  if (!docSnap.exists()) return undefined;
+  return docSnap.data() as Entry;
 }
 
-export function updateEntry(
+export async function updateEntry(
   id: string,
-  updates: Partial<Pick<Entry, "term" | "sourceSentence" | "meaning" | "nuance" | "type" | "tags" | "repeatFlag" | "masteredFlag" | "lastReviewedAt" | "correctCount" | "incorrectCount">>
-): Entry | undefined {
-  const entries = getEntries();
-  const index = entries.findIndex((e) => e.id === id);
-  if (index === -1) return undefined;
+  updates: Partial<
+    Pick<
+      Entry,
+      | "term"
+      | "sourceSentence"
+      | "meaning"
+      | "nuance"
+      | "type"
+      | "tags"
+      | "repeatFlag"
+      | "masteredFlag"
+      | "lastReviewedAt"
+      | "correctCount"
+      | "incorrectCount"
+    >
+  >
+): Promise<Entry | undefined> {
+  const userId = getUserId();
+  const entryRef = doc(db, "users", userId, "entries", id);
+  const entrySnap = await getDoc(entryRef);
+  if (!entrySnap.exists()) return undefined;
 
-  entries[index] = {
-    ...entries[index],
+  const updated = {
+    ...entrySnap.data(),
     ...updates,
     updatedAt: new Date().toISOString(),
-  };
+  } as Entry;
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  return entries[index];
+  await setDoc(entryRef, updated);
+  return updated;
 }
 
-export function deleteEntry(id: string): boolean {
-  const entries = getEntries();
-  const index = entries.findIndex((e) => e.id === id);
-  if (index === -1) return false;
+export async function deleteEntry(id: string): Promise<boolean> {
+  const userId = getUserId();
 
-  entries.splice(index, 1);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  // Delete entry
+  await deleteDoc(doc(db, "users", userId, "entries", id));
 
   // Also delete associated examples
-  const examples = getAllExamples().filter((ex) => ex.entryId !== id);
-  localStorage.setItem(EXAMPLES_KEY, JSON.stringify(examples));
+  const examplesQuery = query(collection(db, "users", userId, "examples"));
+  const snapshot = await getDocs(examplesQuery);
+  const batch = writeBatch(db);
 
+  snapshot.docs.forEach((docSnap) => {
+    const example = docSnap.data() as GeneratedExample;
+    if (example.entryId === id) {
+      batch.delete(docSnap.ref);
+    }
+  });
+
+  await batch.commit();
   return true;
 }
 
 // ============ REPEAT / REVIEW ============
 
-export function getRepeatEntries(): Entry[] {
-  const entries = getEntries().filter((e) => e.repeatFlag === true);
+export async function getRepeatEntries(): Promise<Entry[]> {
+  const entries = await getEntries();
+  const repeatEntries = entries.filter((e) => e.repeatFlag === true);
 
   // Sort by: least recently reviewed first (missing lastReviewedAt comes first), then by newest
-  return entries.sort((a, b) => {
+  return repeatEntries.sort((a, b) => {
     const aReviewed = a.lastReviewedAt ?? 0;
     const bReviewed = b.lastReviewedAt ?? 0;
 
@@ -90,22 +130,28 @@ export function getRepeatEntries(): Entry[] {
   });
 }
 
-export function getRepeatCount(): number {
-  return getEntries().filter((e) => e.repeatFlag === true).length;
+export async function getRepeatCount(): Promise<number> {
+  const entries = await getEntries();
+  return entries.filter((e) => e.repeatFlag === true).length;
 }
 
 // ============ MASTERED ============
 
-export function getMasteredEntries(): Entry[] {
-  return getEntries().filter((e) => e.masteredFlag === true);
+export async function getMasteredEntries(): Promise<Entry[]> {
+  const entries = await getEntries();
+  return entries.filter((e) => e.masteredFlag === true);
 }
 
-export function getMasteredCount(): number {
-  return getEntries().filter((e) => e.masteredFlag === true).length;
+export async function getMasteredCount(): Promise<number> {
+  const entries = await getEntries();
+  return entries.filter((e) => e.masteredFlag === true).length;
 }
 
-export function recordReview(id: string, correct: boolean): Entry | undefined {
-  const entry = getEntryById(id);
+export async function recordReview(
+  id: string,
+  correct: boolean
+): Promise<Entry | undefined> {
+  const entry = await getEntryById(id);
   if (!entry) return undefined;
 
   const currentCorrect = entry.correctCount ?? 0;
@@ -120,26 +166,27 @@ export function recordReview(id: string, correct: boolean): Entry | undefined {
 
 // ============ EXAMPLES ============
 
-function getAllExamples(): GeneratedExample[] {
-  const data = localStorage.getItem(EXAMPLES_KEY);
-  if (!data) return [];
-  try {
-    return JSON.parse(data) as GeneratedExample[];
-  } catch {
-    return [];
-  }
+async function getAllExamples(): Promise<GeneratedExample[]> {
+  const userId = getUserId();
+  const q = query(
+    collection(db, "users", userId, "examples"),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => doc.data() as GeneratedExample);
 }
 
-export function listExamples(entryId: string): GeneratedExample[] {
-  return getAllExamples().filter((ex) => ex.entryId === entryId);
+export async function listExamples(entryId: string): Promise<GeneratedExample[]> {
+  const examples = await getAllExamples();
+  return examples.filter((ex) => ex.entryId === entryId);
 }
 
-export function addExamples(
+export async function addExamples(
   entryId: string,
   style: ExampleStyle,
   texts: string[]
-): GeneratedExample[] {
-  const allExamples = getAllExamples();
+): Promise<GeneratedExample[]> {
+  const userId = getUserId();
   const now = new Date().toISOString();
 
   const newExamples: GeneratedExample[] = texts.map((text) => ({
@@ -151,46 +198,47 @@ export function addExamples(
     createdAt: now,
   }));
 
-  allExamples.push(...newExamples);
-  localStorage.setItem(EXAMPLES_KEY, JSON.stringify(allExamples));
+  const batch = writeBatch(db);
+  for (const example of newExamples) {
+    batch.set(doc(db, "users", userId, "examples", example.id), example);
+  }
+  await batch.commit();
 
   return newExamples;
 }
 
-export function updateExample(
+export async function updateExample(
   id: string,
   updates: Partial<Pick<GeneratedExample, "savedFlag" | "text">>
-): GeneratedExample | undefined {
-  const examples = getAllExamples();
-  const index = examples.findIndex((ex) => ex.id === id);
-  if (index === -1) return undefined;
+): Promise<GeneratedExample | undefined> {
+  const userId = getUserId();
+  const exampleRef = doc(db, "users", userId, "examples", id);
+  const exampleSnap = await getDoc(exampleRef);
+  if (!exampleSnap.exists()) return undefined;
 
-  examples[index] = {
-    ...examples[index],
+  const updated = {
+    ...exampleSnap.data(),
     ...updates,
-  };
+  } as GeneratedExample;
 
-  localStorage.setItem(EXAMPLES_KEY, JSON.stringify(examples));
-  return examples[index];
+  await setDoc(exampleRef, updated);
+  return updated;
 }
 
-export function deleteExample(id: string): boolean {
-  const examples = getAllExamples();
-  const index = examples.findIndex((ex) => ex.id === id);
-  if (index === -1) return false;
-
-  examples.splice(index, 1);
-  localStorage.setItem(EXAMPLES_KEY, JSON.stringify(examples));
+export async function deleteExample(id: string): Promise<boolean> {
+  const userId = getUserId();
+  await deleteDoc(doc(db, "users", userId, "examples", id));
   return true;
 }
 
 // ============ SEARCH ============
 
-export function searchEntries(query: string): Entry[] {
-  if (!query.trim()) return getEntries();
+export async function searchEntries(searchQuery: string): Promise<Entry[]> {
+  const entries = await getEntries();
+  if (!searchQuery.trim()) return entries;
 
-  const q = query.toLowerCase().trim();
-  return getEntries().filter((entry) => {
+  const q = searchQuery.toLowerCase().trim();
+  return entries.filter((entry) => {
     const termMatch = entry.term.toLowerCase().includes(q);
     const meaningMatch = entry.meaning?.toLowerCase().includes(q);
     const sourceMatch = entry.sourceSentence?.toLowerCase().includes(q);

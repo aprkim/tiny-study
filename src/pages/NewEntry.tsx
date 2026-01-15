@@ -91,19 +91,19 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
     };
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (mode === "learn") {
       if (!validateLearn()) return;
-      terms.forEach((t) => {
+      for (const t of terms) {
         if (t.trim()) {
           const entry = createLearnEntry(t);
-          saveEntry(entry);
+          await saveEntry(entry);
         }
-      });
+      }
     } else {
       if (!validateCapture()) return;
       const entry = createCaptureEntry();
-      saveEntry(entry);
+      await saveEntry(entry);
     }
     onSaved();
   };
@@ -115,13 +115,13 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
 
     try {
       const entries: Entry[] = [];
-      terms.forEach((t) => {
+      for (const t of terms) {
         if (t.trim()) {
           const entry = createLearnEntry(t);
-          saveEntry(entry);
+          await saveEntry(entry);
           entries.push(entry);
         }
-      });
+      }
 
       if (entries.length > 0) {
         // Explain all entries
@@ -131,7 +131,7 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
             term: entry.term,
             sourceSentence: entry.sourceSentence,
           });
-          updateEntry(entry.id, { meaning, nuance });
+          await updateEntry(entry.id, { meaning, nuance });
         }
 
         onSavedWithIds(entries.map((e) => e.id));

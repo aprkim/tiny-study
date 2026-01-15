@@ -16,14 +16,26 @@ const typeBgColors: Record<string, string> = {
 
 export default function Mastered({ onSelectEntry }: MasteredProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setEntries(getMasteredEntries());
+    const loadEntries = async () => {
+      setLoading(true);
+      try {
+        const data = await getMasteredEntries();
+        setEntries(data);
+      } catch (error) {
+        console.error("Failed to load mastered entries:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEntries();
   }, []);
 
-  const handleUnmaster = (e: React.MouseEvent, entryId: string) => {
+  const handleUnmaster = async (e: React.MouseEvent, entryId: string) => {
     e.stopPropagation();
-    const updated = updateEntry(entryId, { masteredFlag: false });
+    const updated = await updateEntry(entryId, { masteredFlag: false });
     if (updated) {
       setEntries((prev) => prev.filter((entry) => entry.id !== entryId));
     }
@@ -40,7 +52,11 @@ export default function Mastered({ onSelectEntry }: MasteredProps) {
       </header>
 
       {/* Entries List */}
-      {entries.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16">
+          <p className="text-[#64748b]">Loading...</p>
+        </div>
+      ) : entries.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-[#64748b]">No mastered entries yet.</p>
           <p className="text-sm text-[#9CA3AF] mt-2">

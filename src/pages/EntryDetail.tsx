@@ -73,6 +73,7 @@ export default function EntryDetail({
   onNavigate,
 }: EntryDetailProps) {
   const [entry, setEntry] = useState<Entry | null>(null);
+  const [loading, setLoading] = useState(true);
   const [examples, setExamples] = useState<GeneratedExample[]>([]);
   const [showNuance, setShowNuance] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -82,15 +83,23 @@ export default function EntryDetail({
   const [isTranslatingTerm, setIsTranslatingTerm] = useState(false);
   const [isTranslatingSource, setIsTranslatingSource] = useState(false);
 
-  const loadEntry = () => {
-    const e = getEntryById(entryId);
-    if (e) {
-      setEntry(e);
+  const loadEntry = async () => {
+    setLoading(true);
+    try {
+      const e = await getEntryById(entryId);
+      if (e) {
+        setEntry(e);
+      }
+      const examplesList = await listExamples(entryId);
+      setExamples(examplesList);
+      // Reset translations when navigating to a new entry
+      setTermTranslation("");
+      setSourceTranslation("");
+    } catch (error) {
+      console.error("Failed to load entry:", error);
+    } finally {
+      setLoading(false);
     }
-    setExamples(listExamples(entryId));
-    // Reset translations when navigating to a new entry
-    setTermTranslation("");
-    setSourceTranslation("");
   };
 
   useEffect(() => {
@@ -117,6 +126,14 @@ export default function EntryDetail({
     }
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-6">
+        <p className="text-[#64748b] text-center py-16">Loading...</p>
+      </div>
+    );
+  }
+
   if (!entry) {
     return (
       <div className="max-w-md mx-auto px-4 py-6">
@@ -131,8 +148,8 @@ export default function EntryDetail({
     );
   }
 
-  const handleDelete = () => {
-    deleteEntry(entryId);
+  const handleDelete = async () => {
+    await deleteEntry(entryId);
     onDeleted();
   };
 
@@ -146,7 +163,7 @@ export default function EntryDetail({
         sourceSentence: entry.sourceSentence,
       });
 
-      const newExamples = addExamples(entryId, "neutral", texts);
+      const newExamples = await addExamples(entryId, "neutral", texts);
       setExamples((prev) => [...prev, ...newExamples]);
     } catch (error) {
       console.error("Failed to generate examples:", error);
@@ -155,8 +172,8 @@ export default function EntryDetail({
     }
   };
 
-  const handleToggleSave = (exampleId: string, currentSaved: boolean) => {
-    updateExample(exampleId, { savedFlag: !currentSaved });
+  const handleToggleSave = async (exampleId: string, currentSaved: boolean) => {
+    await updateExample(exampleId, { savedFlag: !currentSaved });
     setExamples((prev) =>
       prev.map((ex) =>
         ex.id === exampleId ? { ...ex, savedFlag: !currentSaved } : ex
@@ -164,13 +181,13 @@ export default function EntryDetail({
     );
   };
 
-  const handleMarkMastered = () => {
-    updateEntry(entryId, { masteredFlag: true });
+  const handleMarkMastered = async () => {
+    await updateEntry(entryId, { masteredFlag: true });
     onBack();
   };
 
-  const handleDeleteExample = (exampleId: string) => {
-    deleteExample(exampleId);
+  const handleDeleteExample = async (exampleId: string) => {
+    await deleteExample(exampleId);
     setExamples((prev) => prev.filter((ex) => ex.id !== exampleId));
   };
 

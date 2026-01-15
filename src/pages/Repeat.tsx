@@ -27,13 +27,25 @@ export default function Repeat({ onBack }: RepeatProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const repeatEntries = getRepeatEntries().slice(0, MAX_ITEMS);
-    setItems(repeatEntries);
-    if (repeatEntries.length === 0) {
-      setFinished(true);
-    }
+    const loadItems = async () => {
+      setLoading(true);
+      try {
+        const repeatEntries = await getRepeatEntries();
+        const sliced = repeatEntries.slice(0, MAX_ITEMS);
+        setItems(sliced);
+        if (sliced.length === 0) {
+          setFinished(true);
+        }
+      } catch (error) {
+        console.error("Failed to load repeat entries:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadItems();
   }, []);
 
   const currentEntry = items[currentIndex];
@@ -43,9 +55,9 @@ export default function Repeat({ onBack }: RepeatProps) {
     setRevealed(true);
   };
 
-  const handleAnswer = (correct: boolean) => {
+  const handleAnswer = async (correct: boolean) => {
     if (currentEntry) {
-      recordReview(currentEntry.id, correct);
+      await recordReview(currentEntry.id, correct);
     }
 
     if (currentIndex + 1 >= total) {
@@ -55,6 +67,16 @@ export default function Repeat({ onBack }: RepeatProps) {
       setRevealed(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-6">
+        <div className="text-center py-16">
+          <p className="text-[#64748b]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (finished) {
     return (

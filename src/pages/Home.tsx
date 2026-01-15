@@ -22,14 +22,39 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [hideMastered, setHideMastered] = useState(true);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [loading, setLoading] = useState(true);
+  const [searchResults, setSearchResults] = useState<Entry[] | null>(null);
 
   useEffect(() => {
-    setEntries(getEntries());
+    const loadEntries = async () => {
+      setLoading(true);
+      try {
+        const data = await getEntries();
+        setEntries(data);
+      } catch (error) {
+        console.error("Failed to load entries:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEntries();
   }, []);
 
-  const handleRepeat = (e: React.MouseEvent, entryId: string) => {
+  useEffect(() => {
+    const search = async () => {
+      if (searchQuery) {
+        const results = await searchEntries(searchQuery);
+        setSearchResults(results);
+      } else {
+        setSearchResults(null);
+      }
+    };
+    search();
+  }, [searchQuery]);
+
+  const handleRepeat = async (e: React.MouseEvent, entryId: string) => {
     e.stopPropagation();
-    const updated = updateEntry(entryId, { repeatFlag: true });
+    const updated = await updateEntry(entryId, { repeatFlag: true });
     if (updated) {
       // Move the entry to the bottom of the list
       setEntries((prev) => {
@@ -41,9 +66,9 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
     }
   };
 
-  const handleToggleMastered = (e: React.MouseEvent, entryId: string, currentMastered: boolean) => {
+  const handleToggleMastered = async (e: React.MouseEvent, entryId: string, currentMastered: boolean) => {
     e.stopPropagation();
-    const updated = updateEntry(entryId, { masteredFlag: !currentMastered });
+    const updated = await updateEntry(entryId, { masteredFlag: !currentMastered });
     if (updated) {
       setEntries((prev) =>
         prev.map((entry) =>
@@ -53,7 +78,7 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
     }
   };
 
-  const filteredEntries = (searchQuery ? searchEntries(searchQuery) : entries).filter(
+  const filteredEntries = (searchResults !== null ? searchResults : entries).filter(
     (entry) => {
       // Filter by mastered status
       if (hideMastered && entry.masteredFlag) return false;
@@ -132,7 +157,11 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
       </div>
 
       {/* Entries List */}
-      {entries.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16">
+          <p className="text-[#64748b]">Loading...</p>
+        </div>
+      ) : entries.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-[#64748b]">No entries yet. Add your first one!</p>
         </div>
