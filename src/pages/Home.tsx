@@ -7,17 +7,21 @@ interface HomeProps {
   onSelectEntry: (id: string) => void;
 }
 
-const typePillStyles: Record<string, string> = {
-  word: "bg-[#FEF2F2] text-[#BF3143]",
-  idiom: "bg-[#F7F5FA] text-[#6E6282]",
-  expression: "bg-[#F4F7F4] text-[#5C6D5F]",
-  sentence: "bg-[#E7F1EB] text-[#3F6B52]",
+// Background colors: Learn (word) = faded purple, Make It Mine (expression) = faded sage green
+const typeBgColors: Record<string, string> = {
+  word: "bg-[#F7F5FA]",
+  idiom: "bg-[#F7F5FA]",
+  expression: "bg-[#F4F7F4]",
+  sentence: "bg-[#F4F7F4]",
 };
+
+type TypeFilter = "all" | "learn" | "capture";
 
 export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideMastered, setHideMastered] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
   useEffect(() => {
     setEntries(getEntries());
@@ -50,7 +54,14 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
   };
 
   const filteredEntries = (searchQuery ? searchEntries(searchQuery) : entries).filter(
-    (entry) => !hideMastered || !entry.masteredFlag
+    (entry) => {
+      // Filter by mastered status
+      if (hideMastered && entry.masteredFlag) return false;
+      // Filter by type
+      if (typeFilter === "learn" && (entry.type === "expression" || entry.type === "sentence")) return false;
+      if (typeFilter === "capture" && (entry.type === "word" || entry.type === "idiom")) return false;
+      return true;
+    }
   );
 
   return (
@@ -76,8 +87,33 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
         />
       </div>
 
-      {/* Hide Mastered Toggle */}
-      <div className="flex items-center justify-end mb-4">
+      {/* Filters Row */}
+      <div className="flex items-center justify-between mb-4">
+        {/* Type Filter Buttons */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => setTypeFilter(typeFilter === "learn" ? "all" : "learn")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              typeFilter === "learn"
+                ? "bg-[#F7F5FA] text-[#6E6282] border border-[#6E6282]"
+                : "bg-white text-[#64748b] border border-[#e2e8f0] hover:border-[#64748b]"
+            }`}
+          >
+            Learn
+          </button>
+          <button
+            onClick={() => setTypeFilter(typeFilter === "capture" ? "all" : "capture")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              typeFilter === "capture"
+                ? "bg-[#F4F7F4] text-[#5C6D5F] border border-[#5C6D5F]"
+                : "bg-white text-[#64748b] border border-[#e2e8f0] hover:border-[#64748b]"
+            }`}
+          >
+            Make It Mine
+          </button>
+        </div>
+
+        {/* Hide Mastered Toggle */}
         <label className="flex items-center gap-2 cursor-pointer">
           <span className="text-sm text-[#64748b]">Hide mastered</span>
           <button
@@ -107,21 +143,16 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
       ) : (
         <ul className="space-y-3">
           {filteredEntries.map((entry) => (
-            <li key={entry.id} className="bg-white border border-[#e2e8f0] rounded-lg overflow-hidden">
+            <li key={entry.id} className={`${typeBgColors[entry.type]} border border-[#e2e8f0] rounded-lg overflow-hidden hover:border-[#cbd5e1] transition-colors`}>
               <button
                 onClick={() => onSelectEntry(entry.id)}
-                className="w-full text-left p-4 hover:bg-[#f7f9f8] transition-colors"
+                className="w-full text-left p-4"
               >
                 <div className="flex items-start gap-3">
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-lg shrink-0 ${typePillStyles[entry.type]}`}
-                  >
-                    {entry.type}
-                  </span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#1e293b]">{entry.term}</p>
+                    <p className="font-semibold text-[#1e293b] mb-1">{entry.term}</p>
                     {entry.sourceSentence && (
-                      <p className="text-sm text-[#64748b] mt-1 truncate">
+                      <p className="text-sm text-[#64748b] truncate">
                         {entry.sourceSentence}
                       </p>
                     )}
@@ -162,16 +193,16 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
               <div className="px-4 pb-3 flex gap-2">
                 <button
                   onClick={(e) => handleRepeat(e, entry.id)}
-                  className="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-[#f0f4f3] text-[#64748b] hover:bg-[#e2e8f0]"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all bg-white border border-[#e2e8f0] text-[#64748b] hover:bg-[#f0f4f3] hover:border-[#64748b]"
                 >
                   Repeat
                 </button>
                 <button
                   onClick={(e) => handleToggleMastered(e, entry.id, entry.masteredFlag ?? false)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     entry.masteredFlag
-                      ? "bg-[#E7F1EB] text-[#3F6B52]"
-                      : "bg-[#f0f4f3] text-[#64748b] hover:bg-[#e2e8f0]"
+                      ? "bg-[#E7F1EB] border border-[#C8DCD0] text-[#3F6B52] hover:border-[#3F6B52]"
+                      : "bg-white border border-[#e2e8f0] text-[#64748b] hover:bg-[#f0f4f3] hover:border-[#64748b]"
                   }`}
                 >
                   {entry.masteredFlag ? "Mastered" : "Mastered"}

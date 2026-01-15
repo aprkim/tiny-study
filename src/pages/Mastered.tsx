@@ -6,11 +6,12 @@ interface MasteredProps {
   onSelectEntry: (id: string) => void;
 }
 
-const typePillStyles: Record<string, string> = {
-  word: "bg-[#FEF2F2] text-[#BF3143]",
-  idiom: "bg-[#F7F5FA] text-[#6E6282]",
-  expression: "bg-[#F4F7F4] text-[#5C6D5F]",
-  sentence: "bg-[#E7F1EB] text-[#3F6B52]",
+// Background colors: Learn (word) = faded purple, Make It Mine (expression) = faded sage green
+const typeBgColors: Record<string, string> = {
+  word: "bg-[#F7F5FA]",
+  idiom: "bg-[#F7F5FA]",
+  expression: "bg-[#F4F7F4]",
+  sentence: "bg-[#F4F7F4]",
 };
 
 export default function Mastered({ onSelectEntry }: MasteredProps) {
@@ -51,22 +52,17 @@ export default function Mastered({ onSelectEntry }: MasteredProps) {
           {entries.map((entry) => (
             <li
               key={entry.id}
-              className="bg-white border border-[#e2e8f0] rounded-lg overflow-hidden"
+              className={`${typeBgColors[entry.type]} border border-[#e2e8f0] rounded-lg overflow-hidden hover:border-[#cbd5e1] transition-colors`}
             >
               <button
                 onClick={() => onSelectEntry(entry.id)}
-                className="w-full text-left p-4 hover:bg-[#f7f9f8] transition-colors"
+                className="w-full text-left p-4"
               >
                 <div className="flex items-start gap-3">
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-lg shrink-0 ${typePillStyles[entry.type]}`}
-                  >
-                    {entry.type}
-                  </span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#1e293b]">{entry.term}</p>
+                    <p className="font-semibold text-[#1e293b] mb-1">{entry.term}</p>
                     {entry.sourceSentence && (
-                      <p className="text-sm text-[#64748b] mt-1 truncate">
+                      <p className="text-sm text-[#64748b] truncate">
                         {entry.sourceSentence}
                       </p>
                     )}
@@ -90,7 +86,7 @@ export default function Mastered({ onSelectEntry }: MasteredProps) {
               <div className="px-4 pb-3">
                 <button
                   onClick={(e) => handleUnmaster(e, entry.id)}
-                  className="w-full px-3 py-2 bg-[#f0f4f3] text-[#64748b] rounded-lg text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-[#e2e8f0] text-[#64748b] rounded-lg text-sm font-medium hover:bg-[#f0f4f3] hover:border-[#64748b] transition-all"
                 >
                   Remove from Mastered
                 </button>

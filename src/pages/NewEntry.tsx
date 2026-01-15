@@ -1,52 +1,23 @@
 import { useState } from "react";
-import { EntryType, Entry } from "../types";
+import { Entry } from "../types";
 import { saveEntry, generateId, updateEntry } from "../storage";
 import { explainEntry } from "../lib/explain";
-import { translateToKorean } from "../lib/translate";
 
 interface NewEntryProps {
   onBack: () => void;
   onSaved: () => void;
-  onSavedWithId: (id: string) => void;
+  onSavedWithIds: (ids: string[]) => void;
 }
 
-const entryTypes: EntryType[] = ["word", "idiom", "expression", "sentence"];
+type Mode = "learn" | "capture";
 
-export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryProps) {
-  const [type, setType] = useState<EntryType>("word");
+export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryProps) {
+  const [mode, setMode] = useState<Mode>("learn");
   const [terms, setTerms] = useState<string[]>([""]);
   const [sourceSentence, setSourceSentence] = useState("");
-  const [errors, setErrors] = useState<{ terms?: Record<number, string>; sourceSentence?: string }>({});
+  const [captureText, setCaptureText] = useState("");
+  const [errors, setErrors] = useState<{ terms?: Record<number, string>; sourceSentence?: string; captureText?: string }>({});
   const [isExplaining, setIsExplaining] = useState(false);
-  const [termTranslations, setTermTranslations] = useState<Record<number, string>>({});
-  const [sentenceTranslation, setSentenceTranslation] = useState("");
-  const [isTranslatingTerm, setIsTranslatingTerm] = useState<Record<number, boolean>>({});
-  const [isTranslatingSentence, setIsTranslatingSentence] = useState(false);
-
-  const handleTranslateTerm = async (index: number) => {
-    const term = terms[index];
-    if (!term.trim()) return;
-
-    setIsTranslatingTerm((prev) => ({ ...prev, [index]: true }));
-    try {
-      const translation = await translateToKorean(term, sourceSentence || undefined);
-      setTermTranslations((prev) => ({ ...prev, [index]: translation }));
-    } finally {
-      setIsTranslatingTerm((prev) => ({ ...prev, [index]: false }));
-    }
-  };
-
-  const handleTranslateSentence = async () => {
-    if (!sourceSentence.trim()) return;
-
-    setIsTranslatingSentence(true);
-    try {
-      const translation = await translateToKorean(sourceSentence);
-      setSentenceTranslation(translation);
-    } finally {
-      setIsTranslatingSentence(false);
-    }
-  };
 
   const addTermField = () => {
     setTerms((prev) => [...prev, ""]);
@@ -70,7 +41,7 @@ export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryPro
     }
   };
 
-  const validate = (): boolean => {
+  const validateLearn = (): boolean => {
     const newErrors: { terms?: Record<number, string>; sourceSentence?: string } = {};
     const termErrors: Record<number, string> = {};
 
@@ -84,62 +55,86 @@ export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryPro
       newErrors.terms = termErrors;
     }
 
-    if (type === "word" && !sourceSentence.trim()) {
-      newErrors.sourceSentence = "Source sentence is required for words";
+    if (!sourceSentence.trim()) {
+      newErrors.sourceSentence = "Source sentence is required";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const createEntry = (term: string): Entry => {
+  const validateCapture = (): boolean => {
+    if (!captureText.trim()) {
+      setErrors({ captureText: "Please enter something to save" });
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+
+  const createLearnEntry = (term: string): Entry => {
     return {
       id: generateId(),
-      type,
+      type: "word",
       term: term.trim(),
-      sourceSentence: type === "word" ? sourceSentence.trim() : undefined,
+      sourceSentence: sourceSentence.trim(),
+      createdAt: new Date().toISOString(),
+    };
+  };
+
+  const createCaptureEntry = (): Entry => {
+    return {
+      id: generateId(),
+      type: "expression",
+      term: captureText.trim(),
       createdAt: new Date().toISOString(),
     };
   };
 
   const handleSave = () => {
-    if (!validate()) return;
-    terms.forEach((t) => {
-      if (t.trim()) {
-        const entry = createEntry(t);
-        saveEntry(entry);
-      }
-    });
+    if (mode === "learn") {
+      if (!validateLearn()) return;
+      terms.forEach((t) => {
+        if (t.trim()) {
+          const entry = createLearnEntry(t);
+          saveEntry(entry);
+        }
+      });
+    } else {
+      if (!validateCapture()) return;
+      const entry = createCaptureEntry();
+      saveEntry(entry);
+    }
     onSaved();
   };
 
   const handleSaveAndExplain = async () => {
-    if (!validate()) return;
+    if (!validateLearn()) return;
 
     setIsExplaining(true);
 
     try {
-      // Save all entries first
       const entries: Entry[] = [];
       terms.forEach((t) => {
         if (t.trim()) {
-          const entry = createEntry(t);
+          const entry = createLearnEntry(t);
           saveEntry(entry);
           entries.push(entry);
         }
       });
 
-      // Generate explanation for the first entry and navigate to it
       if (entries.length > 0) {
-        const firstEntry = entries[0];
-        const { meaning, nuance } = await explainEntry({
-          type: firstEntry.type,
-          term: firstEntry.term,
-          sourceSentence: firstEntry.sourceSentence,
-        });
+        // Explain all entries
+        for (const entry of entries) {
+          const { meaning, nuance } = await explainEntry({
+            type: entry.type,
+            term: entry.term,
+            sourceSentence: entry.sourceSentence,
+          });
+          updateEntry(entry.id, { meaning, nuance });
+        }
 
-        updateEntry(firstEntry.id, { meaning, nuance });
-        onSavedWithId(firstEntry.id);
+        onSavedWithIds(entries.map((e) => e.id));
       }
     } catch (error) {
       console.error("Failed to explain:", error);
@@ -172,202 +167,185 @@ export default function NewEntry({ onBack, onSaved, onSavedWithId }: NewEntryPro
       </header>
 
       <div className="space-y-6">
-        {/* Segmented Control */}
+        {/* Mode Toggle */}
         <div className="flex gap-1 p-1 bg-[#f0f4f3] rounded-lg">
-          {entryTypes.map((t) => (
-            <button
-              key={t}
-              onClick={() => setType(t)}
-              disabled={isExplaining}
-              className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg capitalize transition-colors ${
-                type === t
-                  ? "bg-white text-[#1e293b] shadow-sm"
-                  : "text-[#64748b] hover:text-[#1e293b]"
-              } ${isExplaining ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              {t}
-            </button>
-          ))}
+          <button
+            onClick={() => setMode("learn")}
+            disabled={isExplaining}
+            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              mode === "learn"
+                ? "bg-[#F7F5FA] text-[#6E6282] shadow-sm"
+                : "text-[#64748b] hover:text-[#1e293b]"
+            } ${isExplaining ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            Learn
+          </button>
+          <button
+            onClick={() => setMode("capture")}
+            disabled={isExplaining}
+            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              mode === "capture"
+                ? "bg-[#F4F7F4] text-[#5C6D5F] shadow-sm"
+                : "text-[#64748b] hover:text-[#1e293b]"
+            } ${isExplaining ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            Make It Mine
+          </button>
         </div>
 
-        {/* Term Input(s) */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-[#1e293b]">
-              Term{terms.length > 1 ? "s" : ""}
-            </label>
-            <button
-              type="button"
-              onClick={addTermField}
-              disabled={isExplaining}
-              className="flex items-center gap-1 text-sm text-[#BF3143] hover:text-[#a52a3a] disabled:opacity-50"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v8M8 12h8" />
-              </svg>
-              Add
-            </button>
-          </div>
-          <div className="space-y-3">
-            {terms.map((t, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={t}
-                    onChange={(e) => updateTerm(index, e.target.value)}
-                    disabled={isExplaining}
-                    placeholder="Enter term..."
-                    className={`flex-1 px-4 py-3 bg-white border rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all ${
-                      errors.terms?.[index] ? "border-[#BF3143]" : "border-[#e2e8f0]"
-                    } ${isExplaining ? "opacity-50" : ""}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleTranslateTerm(index)}
-                    disabled={isExplaining || isTranslatingTerm[index] || !t.trim()}
-                    className="px-3 text-[#6E6282] hover:text-[#BF3143] disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Translate to Korean"
-                  >
-                    {isTranslatingTerm[index] ? (
-                      <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                        <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m5 8 6 6" />
-                        <path d="m4 14 6-6 2-3" />
-                        <path d="M2 5h12" />
-                        <path d="M7 2h1" />
-                        <path d="m22 22-5-10-5 10" />
-                        <path d="M14 18h6" />
-                      </svg>
-                    )}
-                  </button>
-                  {terms.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeTermField(index)}
-                      disabled={isExplaining}
-                      className="px-3 text-[#9CA3AF] hover:text-[#BF3143] disabled:opacity-50"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M8 12h8" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-                {termTranslations[index] && (
-                  <p className="text-sm text-[#6E6282] bg-[#F7F5FA] px-3 py-2 rounded-lg">
-                    {termTranslations[index]}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          {errors.terms && Object.keys(errors.terms).length > 0 && (
-            <p className="mt-2 text-sm text-[#BF3143]">Please fill in all term fields</p>
-          )}
-        </div>
-
-        {/* Source Sentence Input (conditional) */}
-        {type === "word" && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-[#1e293b]">
+        {/* Learn Mode */}
+        {mode === "learn" && (
+          <>
+            {/* Source Sentence Input */}
+            <div>
+              <label className="block text-sm font-medium text-[#1e293b] mb-2">
                 Source Sentence
               </label>
+              <textarea
+                value={sourceSentence}
+                onChange={(e) => {
+                  setSourceSentence(e.target.value.trim());
+                  if (errors.sourceSentence)
+                    setErrors((prev) => ({ ...prev, sourceSentence: undefined }));
+                }}
+                disabled={isExplaining}
+                placeholder="Enter the sentence where you found this word..."
+                rows={3}
+                className={`w-full px-4 py-3 bg-white border rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all resize-none ${
+                  errors.sourceSentence ? "border-[#BF3143]" : "border-[#e2e8f0]"
+                } ${isExplaining ? "opacity-50" : ""}`}
+              />
+              {errors.sourceSentence && (
+                <p className="mt-2 text-sm text-[#BF3143]">{errors.sourceSentence}</p>
+              )}
+            </div>
+
+            {/* Term Input(s) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-[#1e293b]">
+                  Term{terms.length > 1 ? "s" : ""}
+                </label>
+                <button
+                  type="button"
+                  onClick={addTermField}
+                  disabled={isExplaining}
+                  className="flex items-center gap-1 text-sm text-[#BF3143] hover:text-[#a52a3a] disabled:opacity-50"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v8M8 12h8" />
+                  </svg>
+                  Add
+                </button>
+              </div>
+              <div className="space-y-3">
+                {terms.map((t, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={t}
+                      onChange={(e) => updateTerm(index, e.target.value)}
+                      disabled={isExplaining}
+                      placeholder="Enter term..."
+                      className={`flex-1 px-4 py-3 bg-white border rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all ${
+                        errors.terms?.[index] ? "border-[#BF3143]" : "border-[#e2e8f0]"
+                      } ${isExplaining ? "opacity-50" : ""}`}
+                    />
+                    {terms.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeTermField(index)}
+                        disabled={isExplaining}
+                        className="px-3 text-[#9CA3AF] hover:text-[#BF3143] disabled:opacity-50"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M8 12h8" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {errors.terms && Object.keys(errors.terms).length > 0 && (
+                <p className="mt-2 text-sm text-[#BF3143]">Please fill in all term fields</p>
+              )}
+            </div>
+
+            {/* Learn Mode Buttons */}
+            <div className="space-y-3">
               <button
-                type="button"
-                onClick={handleTranslateSentence}
-                disabled={isExplaining || isTranslatingSentence || !sourceSentence.trim()}
-                className="flex items-center gap-1 text-sm text-[#6E6282] hover:text-[#BF3143] disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Translate to Korean"
+                onClick={handleSaveAndExplain}
+                disabled={isExplaining}
+                className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isTranslatingSentence ? (
-                  <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m5 8 6 6" />
-                    <path d="m4 14 6-6 2-3" />
-                    <path d="M2 5h12" />
-                    <path d="M7 2h1" />
-                    <path d="m22 22-5-10-5 10" />
-                    <path d="M14 18h6" />
-                  </svg>
-                )}
-                <span>Translate</span>
+                {isExplaining ? "Explaining..." : "Save + Explain"}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isExplaining}
+                className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Only
               </button>
             </div>
-            <textarea
-              value={sourceSentence}
-              onChange={(e) => {
-                setSourceSentence(e.target.value);
-                setSentenceTranslation("");
-                if (errors.sourceSentence)
-                  setErrors((prev) => ({ ...prev, sourceSentence: undefined }));
-              }}
-              disabled={isExplaining}
-              placeholder="Enter the sentence where you found this word..."
-              rows={3}
-              className={`w-full px-4 py-3 bg-white border rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all resize-none ${
-                errors.sourceSentence ? "border-[#BF3143]" : "border-[#e2e8f0]"
-              } ${isExplaining ? "opacity-50" : ""}`}
-            />
-            {sentenceTranslation && (
-              <p className="mt-2 text-sm text-[#6E6282] bg-[#F7F5FA] px-3 py-2 rounded-lg">
-                {sentenceTranslation}
-              </p>
-            )}
-            {errors.sourceSentence && (
-              <p className="mt-2 text-sm text-[#BF3143]">{errors.sourceSentence}</p>
-            )}
-          </div>
+          </>
         )}
 
-        {/* Buttons */}
-        <div className="space-y-3">
-          <button
-            onClick={handleSaveAndExplain}
-            disabled={isExplaining}
-            className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isExplaining ? "Explaining..." : "Save + Explain"}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isExplaining}
-            className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Save Only
-          </button>
-        </div>
+        {/* Capture Mode (Make It Mine) */}
+        {mode === "capture" && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-[#1e293b] mb-2">
+                Capture
+              </label>
+              <textarea
+                value={captureText}
+                onChange={(e) => {
+                  setCaptureText(e.target.value.trim());
+                  if (errors.captureText)
+                    setErrors((prev) => ({ ...prev, captureText: undefined }));
+                }}
+                placeholder="Paste a sentence or expression you want to remember..."
+                rows={5}
+                className={`w-full px-4 py-3 bg-white border rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143] focus:border-transparent transition-all resize-none ${
+                  errors.captureText ? "border-[#BF3143]" : "border-[#e2e8f0]"
+                }`}
+              />
+              {errors.captureText && (
+                <p className="mt-2 text-sm text-[#BF3143]">{errors.captureText}</p>
+              )}
+            </div>
+
+            <button
+              onClick={handleSave}
+              className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
+            >
+              Save
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -10,11 +10,14 @@ import {
   deleteExample,
 } from "../storage";
 import { generateExamples } from "../lib/generateExamples";
+import { translateToKorean } from "../lib/translate";
 
 interface EntryDetailProps {
   entryId: string;
+  entryIds?: string[];
   onBack: () => void;
   onDeleted: () => void;
+  onNavigate?: (id: string) => void;
 }
 
 const typePillStyles: Record<string, string> = {
@@ -22,6 +25,13 @@ const typePillStyles: Record<string, string> = {
   idiom: "bg-[#F7F5FA] text-[#6E6282]",
   expression: "bg-[#F4F7F4] text-[#5C6D5F]",
   sentence: "bg-[#E7F1EB] text-[#3F6B52]",
+};
+
+const typeLabels: Record<string, string> = {
+  word: "Learn",
+  idiom: "Idiom",
+  expression: "Make It Mine",
+  sentence: "Sentence",
 };
 
 
@@ -57,14 +67,20 @@ function formatDate(dateString: string): string {
 
 export default function EntryDetail({
   entryId,
+  entryIds = [],
   onBack,
   onDeleted,
+  onNavigate,
 }: EntryDetailProps) {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [examples, setExamples] = useState<GeneratedExample[]>([]);
   const [showNuance, setShowNuance] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [termTranslation, setTermTranslation] = useState<string>("");
+  const [sourceTranslation, setSourceTranslation] = useState<string>("");
+  const [isTranslatingTerm, setIsTranslatingTerm] = useState(false);
+  const [isTranslatingSource, setIsTranslatingSource] = useState(false);
 
   const loadEntry = () => {
     const e = getEntryById(entryId);
@@ -72,11 +88,34 @@ export default function EntryDetail({
       setEntry(e);
     }
     setExamples(listExamples(entryId));
+    // Reset translations when navigating to a new entry
+    setTermTranslation("");
+    setSourceTranslation("");
   };
 
   useEffect(() => {
     loadEntry();
   }, [entryId]);
+
+  // Navigation for multiple entries
+  const currentIndex = entryIds.indexOf(entryId);
+  const hasMultipleEntries = entryIds.length > 1;
+  const hasPrevious = currentIndex > 0;
+  const hasNext = currentIndex < entryIds.length - 1;
+
+  const handlePrevious = () => {
+    if (hasPrevious && onNavigate) {
+      onNavigate(entryIds[currentIndex - 1]);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleNext = () => {
+    if (hasNext && onNavigate) {
+      onNavigate(entryIds[currentIndex + 1]);
+      window.scrollTo(0, 0);
+    }
+  };
 
   if (!entry) {
     return (
@@ -135,6 +174,34 @@ export default function EntryDetail({
     setExamples((prev) => prev.filter((ex) => ex.id !== exampleId));
   };
 
+  const handleTranslateTerm = async () => {
+    if (!entry) return;
+    setIsTranslatingTerm(true);
+    try {
+      const translation = await translateToKorean(entry.term, entry.sourceSentence);
+      setTermTranslation(translation);
+    } catch (error) {
+      console.error("Translation failed:", error);
+      setTermTranslation("[번역 실패]");
+    } finally {
+      setIsTranslatingTerm(false);
+    }
+  };
+
+  const handleTranslateSource = async () => {
+    if (!entry?.sourceSentence) return;
+    setIsTranslatingSource(true);
+    try {
+      const translation = await translateToKorean(entry.sourceSentence);
+      setSourceTranslation(translation);
+    } catch (error) {
+      console.error("Translation failed:", error);
+      setSourceTranslation("[번역 실패]");
+    } finally {
+      setIsTranslatingSource(false);
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto px-4 py-6">
       {/* Header */}
@@ -167,7 +234,7 @@ export default function EntryDetail({
             <span
               className={`inline-block px-2 py-1 text-xs font-medium rounded-lg ${typePillStyles[entry.type]}`}
             >
-              {entry.type}
+              {typeLabels[entry.type] || entry.type}
             </span>
             {entry.repeatFlag && (
               <span className="text-[#BF3143]" title="In repeat list">
@@ -188,7 +255,32 @@ export default function EntryDetail({
               </span>
             )}
           </div>
-          <h2 className="text-3xl font-bold text-[#1e293b]">{entry.term}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold text-[#1e293b]">{entry.term}</h2>
+            <button
+              onClick={handleTranslateTerm}
+              disabled={isTranslatingTerm}
+              className="p-2 text-[#64748b] hover:text-[#BF3143] transition-colors disabled:opacity-50"
+              title="Translate to Korean"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
+              </svg>
+            </button>
+          </div>
+          {termTranslation && (
+            <p className="text-[#64748b] mt-1">{termTranslation}</p>
+          )}
         </div>
 
         {/* Tags */}
@@ -205,18 +297,20 @@ export default function EntryDetail({
           </div>
         )}
 
-        {/* Meaning */}
-        <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
-          <h3 className="text-sm font-medium text-[#64748b] mb-2">Meaning</h3>
-          {entry.meaning ? (
-            <p className="text-[#1e293b]">{entry.meaning}</p>
-          ) : (
-            <p className="text-[#9CA3AF] italic">No explanation yet.</p>
-          )}
-        </div>
+        {/* Meaning - only for Learn mode (not expression) */}
+        {entry.type !== "expression" && (
+          <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
+            <h3 className="text-sm font-medium text-[#64748b] mb-2">Meaning</h3>
+            {entry.meaning ? (
+              <p className="text-[#1e293b]">{entry.meaning}</p>
+            ) : (
+              <p className="text-[#9CA3AF] italic">No explanation yet.</p>
+            )}
+          </div>
+        )}
 
-        {/* Nuance (collapsible) */}
-        {entry.nuance && (
+        {/* Nuance (collapsible) - only for Learn mode (not expression) */}
+        {entry.type !== "expression" && entry.nuance && (
           <div className="bg-white border border-[#e2e8f0] rounded-lg overflow-hidden">
             <button
               onClick={() => setShowNuance(!showNuance)}
@@ -251,38 +345,57 @@ export default function EntryDetail({
         {/* Source Sentence */}
         {entry.sourceSentence && (
           <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
-            <h3 className="text-sm font-medium text-[#64748b] mb-2">
-              Source Sentence
-            </h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-[#64748b]">
+                Source Sentence
+              </h3>
+              <button
+                onClick={handleTranslateSource}
+                disabled={isTranslatingSource}
+                className="p-1 text-[#64748b] hover:text-[#BF3143] transition-colors disabled:opacity-50"
+                title="Translate to Korean"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
+                </svg>
+              </button>
+            </div>
             <p className="text-[#1e293b] leading-relaxed">
               {highlightTerm(entry.sourceSentence, entry.term)}
             </p>
+            {sourceTranslation && (
+              <p className="text-[#64748b] mt-2 pt-2 border-t border-[#e2e8f0]">
+                {sourceTranslation}
+              </p>
+            )}
           </div>
         )}
 
-        {/* Created Date */}
-        <p className="text-xs text-[#9CA3AF]">
-          Added {formatDate(entry.createdAt)}
-          {entry.updatedAt && ` · Updated ${formatDate(entry.updatedAt)}`}
-        </p>
+        {/* Generate Button - only for Learn mode (not expression) */}
+        {entry.type !== "expression" && (
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50"
+          >
+            {isGenerating ? "Generating..." : "Generate Examples"}
+          </button>
+        )}
 
-        {/* Generate Button */}
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50"
-        >
-          {isGenerating ? "Generating..." : "Generate Examples"}
-        </button>
-
-        {/* Examples Section */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-[#64748b]">Examples</h3>
-          {examples.length === 0 ? (
-            <p className="text-[#9CA3AF] italic text-sm py-4 text-center">
-              No examples yet. Generate some.
-            </p>
-          ) : (
+        {/* Examples Section - only show when there are examples and not expression type */}
+        {entry.type !== "expression" && examples.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-[#64748b]">Examples</h3>
             <ul className="space-y-3">
               {examples.map((example) => (
                 <li
@@ -330,8 +443,8 @@ export default function EntryDetail({
                 </li>
               ))}
             </ul>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="space-y-3 pt-4">
@@ -350,6 +463,68 @@ export default function EntryDetail({
             Delete
           </button>
         </div>
+
+        {/* Navigation for multiple entries */}
+        {hasMultipleEntries && (
+          <div className="flex items-center justify-between pt-4">
+            <button
+              onClick={handlePrevious}
+              disabled={!hasPrevious}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                hasPrevious
+                  ? "text-[#1e293b] bg-[#f0f4f3] hover:bg-[#e2e8f0]"
+                  : "text-[#9CA3AF] bg-[#f7f9f8] cursor-not-allowed"
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              Previous
+            </button>
+            <span className="text-sm text-[#64748b]">
+              {currentIndex + 1} / {entryIds.length}
+            </span>
+            <button
+              onClick={handleNext}
+              disabled={!hasNext}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                hasNext
+                  ? "text-white bg-[#BF3143] hover:bg-[#a52a3a]"
+                  : "text-[#9CA3AF] bg-[#f7f9f8] cursor-not-allowed"
+              }`}
+            >
+              Next
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Created Date */}
+        <p className="text-xs text-[#9CA3AF] text-right">
+          Added {formatDate(entry.createdAt)}
+        </p>
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -360,8 +535,7 @@ export default function EntryDetail({
               Delete Entry?
             </h3>
             <p className="text-[#64748b] mb-6">
-              This will permanently delete "{entry.term}". This action cannot be
-              undone.
+              This will permanently delete "{entry.term}".
             </p>
             <div className="flex gap-3">
               <button

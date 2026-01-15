@@ -14,21 +14,26 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>("study");
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
 
   const navigateHome = () => {
     setRefreshKey((k) => k + 1);
     setPage("home");
     setActiveTab("study");
     setSelectedEntryId(null);
+    setSelectedEntryIds([]);
   };
 
   const handleSaved = () => {
     navigateHome();
   };
 
-  const handleSavedWithId = (id: string) => {
-    setSelectedEntryId(id);
-    setPage("detail");
+  const handleSavedWithIds = (ids: string[]) => {
+    if (ids.length >= 1) {
+      setSelectedEntryId(ids[0]);
+      setSelectedEntryIds(ids);
+      setPage("detail");
+    }
   };
 
   const handleSelectEntry = (id: string) => {
@@ -65,14 +70,16 @@ function App() {
         <NewEntry
           onBack={navigateHome}
           onSaved={handleSaved}
-          onSavedWithId={handleSavedWithId}
+          onSavedWithIds={handleSavedWithIds}
         />
       )}
       {page === "detail" && selectedEntryId && (
         <EntryDetail
           entryId={selectedEntryId}
+          entryIds={selectedEntryIds}
           onBack={navigateHome}
           onDeleted={navigateHome}
+          onNavigate={(id) => setSelectedEntryId(id)}
         />
       )}
       {page === "edit" && selectedEntryId && (
