@@ -316,7 +316,13 @@ export default function Settings() {
 
         {/* Version */}
         <p className="text-center text-[#64748b] text-sm">
-          Tiny Study by TinyWins
+          Tiny Study by{" "}
+          <a
+            href="https://tinywins.space"
+            className="text-[#BF3143] hover:underline"
+          >
+            TinyWins
+          </a>
         </p>
       </div>
 
