@@ -3,6 +3,8 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInAnonymously,
+  linkWithCredential,
   signOut as firebaseSignOut,
   updatePassword as firebaseUpdatePassword,
   EmailAuthProvider,
@@ -45,4 +47,18 @@ export async function changePassword(currentPassword: string, newPassword: strin
   const credential = EmailAuthProvider.credential(user.email, currentPassword)
   await reauthenticateWithCredential(user, credential)
   await firebaseUpdatePassword(user, newPassword)
+}
+
+export async function signInAnonymousUser(): Promise<User> {
+  const result = await signInAnonymously(auth)
+  return result.user
+}
+
+export async function linkAnonymousAccount(email: string, password: string): Promise<User> {
+  const user = auth.currentUser
+  if (!user) throw new Error('No user logged in')
+
+  const credential = EmailAuthProvider.credential(email, password)
+  const result = await linkWithCredential(user, credential)
+  return result.user
 }

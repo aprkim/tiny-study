@@ -10,13 +10,19 @@ interface BackupData {
 }
 
 export default function Settings() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAnonymous, linkAccount, signIn } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isKeySet, setIsKeySet] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [signingOut, setSigningOut] = useState(false);
+  const [showAccountForm, setShowAccountForm] = useState(false);
+  const [isSignIn, setIsSignIn] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [accountError, setAccountError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [modal, setModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -36,6 +42,39 @@ export default function Settings() {
       console.error("Sign out error:", error);
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const handleAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountError("");
+    setIsSubmitting(true);
+
+    try {
+      if (isSignIn) {
+        await signIn(email, password);
+      } else {
+        await linkAccount(email, password);
+      }
+      setShowAccountForm(false);
+      setEmail("");
+      setPassword("");
+      showModal("Success", isSignIn ? "Signed in successfully!" : "Account created successfully!", "success");
+    } catch (error: unknown) {
+      const firebaseError = error as { code?: string; message?: string };
+      if (firebaseError.code === "auth/email-already-in-use") {
+        setAccountError("This email is already registered. Try signing in instead.");
+      } else if (firebaseError.code === "auth/weak-password") {
+        setAccountError("Password should be at least 6 characters.");
+      } else if (firebaseError.code === "auth/invalid-email") {
+        setAccountError("Please enter a valid email address.");
+      } else if (firebaseError.code === "auth/user-not-found" || firebaseError.code === "auth/wrong-password") {
+        setAccountError("Invalid email or password.");
+      } else {
+        setAccountError(firebaseError.message || "An error occurred. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -302,16 +341,93 @@ export default function Settings() {
         {/* Account Section */}
         <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
           <h2 className="font-semibold text-[#1e293b] mb-2">Account</h2>
-          <p className="text-sm text-[#64748b] mb-4">
-            Signed in as {user?.email}
-          </p>
-          <button
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="px-4 py-2 bg-[#FEF2F2] text-[#BF3143] rounded-lg text-sm font-medium hover:bg-[#fde8e8] transition-colors disabled:opacity-50"
-          >
-            {signingOut ? "Signing out..." : "Sign Out"}
-          </button>
+
+          {isAnonymous ? (
+            <>
+              {!showAccountForm ? (
+                <>
+                  <p className="text-sm text-[#64748b] mb-4">
+                    You're using a guest account. Create an account to sync your data across devices.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowAccountForm(true); setIsSignIn(false); }}
+                      className="px-4 py-2 bg-[#BF3143] text-white rounded-lg text-sm font-medium hover:bg-[#a52a3a] transition-colors"
+                    >
+                      Create Account
+                    </button>
+                    <button
+                      onClick={() => { setShowAccountForm(true); setIsSignIn(true); }}
+                      className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-lg text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <form onSubmit={handleAccountSubmit} className="space-y-3">
+                  <p className="text-sm text-[#64748b]">
+                    {isSignIn ? "Sign in to your existing account" : "Create a new account to save your data"}
+                  </p>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email"
+                    required
+                    className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143]"
+                  />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    required
+                    className="w-full px-4 py-3 bg-white border border-[#e2e8f0] rounded-lg text-[#1e293b] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#BF3143]"
+                  />
+                  {accountError && (
+                    <p className="text-sm text-[#BF3143]">{accountError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-4 py-2 bg-[#BF3143] text-white rounded-lg text-sm font-medium hover:bg-[#a52a3a] transition-colors disabled:opacity-50"
+                    >
+                      {isSubmitting ? "..." : isSignIn ? "Sign In" : "Create Account"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAccountForm(false); setAccountError(""); }}
+                      className="px-4 py-2 bg-[#f0f4f3] text-[#1e293b] rounded-lg text-sm font-medium hover:bg-[#e2e8f0] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <p className="text-sm text-[#64748b]">
+                    {isSignIn ? (
+                      <>Don't have an account? <button type="button" onClick={() => setIsSignIn(false)} className="text-[#BF3143] underline">Create one</button></>
+                    ) : (
+                      <>Already have an account? <button type="button" onClick={() => setIsSignIn(true)} className="text-[#BF3143] underline">Sign in</button></>
+                    )}
+                  </p>
+                </form>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-[#64748b] mb-4">
+                Signed in as {user?.email}
+              </p>
+              <button
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="px-4 py-2 bg-[#FEF2F2] text-[#BF3143] rounded-lg text-sm font-medium hover:bg-[#fde8e8] transition-colors disabled:opacity-50"
+              >
+                {signingOut ? "Signing out..." : "Sign Out"}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Version */}
