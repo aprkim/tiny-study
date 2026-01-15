@@ -168,14 +168,14 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
 
       <div className="space-y-6">
         {/* Mode Toggle */}
-        <div className="flex gap-1 p-1 bg-[#f0f4f3] rounded-lg">
+        <div className="flex gap-2">
           <button
             onClick={() => setMode("learn")}
             disabled={isExplaining}
-            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
               mode === "learn"
-                ? "bg-[#F7F5FA] text-[#6E6282] shadow-sm"
-                : "text-[#64748b] hover:text-[#1e293b]"
+                ? "bg-[#F7F5FA] text-[#6E6282] border border-[#6E6282]"
+                : "bg-white text-[#64748b] border border-[#e2e8f0] hover:border-[#64748b]"
             } ${isExplaining ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             Learn
@@ -183,10 +183,10 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
           <button
             onClick={() => setMode("capture")}
             disabled={isExplaining}
-            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
               mode === "capture"
-                ? "bg-[#F4F7F4] text-[#5C6D5F] shadow-sm"
-                : "text-[#64748b] hover:text-[#1e293b]"
+                ? "bg-[#F4F7F4] text-[#5C6D5F] border border-[#5C6D5F]"
+                : "bg-white text-[#64748b] border border-[#e2e8f0] hover:border-[#64748b]"
             } ${isExplaining ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             Make It Mine
