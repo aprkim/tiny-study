@@ -1,5 +1,5 @@
 import { EntryType, ExampleStyle } from "../types";
-import { getClient, hasApiKey } from "./anthropic";
+import { aiComplete, hasAICapability } from "./aiService";
 
 interface GenerateParams {
   term: string;
@@ -13,33 +13,15 @@ export async function generateExamples(
 ): Promise<string[]> {
   const { term, type, style, sourceSentence } = params;
 
-  // Check if API key is available
-  if (!hasApiKey()) {
-    return getFallbackExamples(term, type);
-  }
-
-  const client = getClient();
-  if (!client) {
+  // Check if AI capability is available (trial or user's API key)
+  const hasCapability = await hasAICapability();
+  if (!hasCapability) {
     return getFallbackExamples(term, type);
   }
 
   try {
     const prompt = buildPrompt(term, type, style, sourceSentence);
-
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 800,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const responseText =
-      message.content[0].type === "text" ? message.content[0].text : "";
-
+    const responseText = await aiComplete(prompt, 800);
     return parseExamples(responseText);
   } catch (error) {
     console.error("AI example generation failed:", error);

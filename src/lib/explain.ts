@@ -1,5 +1,5 @@
 import { EntryType } from "../types";
-import { getClient, hasApiKey } from "./anthropic";
+import { aiComplete, hasAICapability } from "./aiService";
 
 interface ExplainInput {
   type: EntryType;
@@ -15,33 +15,15 @@ interface ExplainOutput {
 export async function explainEntry(input: ExplainInput): Promise<ExplainOutput> {
   const { type, term, sourceSentence } = input;
 
-  // Check if API key is available
-  if (!hasApiKey()) {
-    return getFallbackExplanation(input);
-  }
-
-  const client = getClient();
-  if (!client) {
+  // Check if AI capability is available (trial or user's API key)
+  const hasCapability = await hasAICapability();
+  if (!hasCapability) {
     return getFallbackExplanation(input);
   }
 
   try {
     const prompt = buildPrompt(type, term, sourceSentence);
-
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 500,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const responseText =
-      message.content[0].type === "text" ? message.content[0].text : "";
-
+    const responseText = await aiComplete(prompt, 500);
     return parseResponse(responseText);
   } catch (error) {
     console.error("AI explanation failed:", error);

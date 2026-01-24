@@ -1,4 +1,4 @@
-import { getClient, hasApiKey } from "./anthropic";
+import { aiComplete, hasAICapability } from "./aiService";
 
 export async function translateToKorean(
   text: string,
@@ -8,13 +8,10 @@ export async function translateToKorean(
     return "";
   }
 
-  if (!hasApiKey()) {
-    return "[API 키를 설정하세요]";
-  }
-
-  const client = getClient();
-  if (!client) {
-    return "[API 키를 설정하세요]";
+  // Check if AI capability is available (trial or user's API key)
+  const hasCapability = await hasAICapability();
+  if (!hasCapability) {
+    return "[Trial exhausted. Add API key in Settings]";
   }
 
   try {
@@ -27,20 +24,7 @@ export async function translateToKorean(
 
     prompt += `\nRespond with ONLY the Korean translation, nothing else.`;
 
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 200,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const responseText =
-      message.content[0].type === "text" ? message.content[0].text : "";
-
+    const responseText = await aiComplete(prompt, 200);
     return responseText.trim();
   } catch (error) {
     console.error("Translation failed:", error);
