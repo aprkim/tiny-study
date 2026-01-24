@@ -34,6 +34,40 @@ const typeLabels: Record<string, string> = {
   sentence: "Sentence",
 };
 
+// Text-to-speech helper functions
+function speakText(text: string, onEnd?: () => void) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+    if (onEnd) {
+      utterance.onend = onEnd;
+      utterance.onerror = onEnd;
+    }
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+function pauseSpeaking() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.pause();
+  }
+}
+
+function resumeSpeaking() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.resume();
+  }
+}
+
+function stopSpeaking() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
 
 function highlightTerm(sentence: string, term: string): React.ReactNode {
   const termLower = term.toLowerCase();
@@ -82,9 +116,39 @@ export default function EntryDetail({
   const [sourceTranslation, setSourceTranslation] = useState<string>("");
   const [isTranslatingTerm, setIsTranslatingTerm] = useState(false);
   const [isTranslatingSource, setIsTranslatingSource] = useState(false);
+  const [speechState, setSpeechState] = useState<{ id: string; status: 'playing' | 'paused'; text: string } | null>(null);
+
+  const handleSpeak = (text: string, id: string) => {
+    if (speechState?.id === id) {
+      if (speechState.status === 'playing') {
+        // Pause
+        pauseSpeaking();
+        setSpeechState({ ...speechState, status: 'paused' });
+      } else {
+        // Resume
+        resumeSpeaking();
+        setSpeechState({ ...speechState, status: 'playing' });
+      }
+    } else {
+      // Start new speech (stops any current)
+      setSpeechState({ id, status: 'playing', text });
+      speakText(text, () => setSpeechState(null));
+    }
+  };
+
+  const handleReplay = () => {
+    if (speechState) {
+      const { id, text } = speechState;
+      setSpeechState({ id, status: 'playing', text });
+      speakText(text, () => setSpeechState(null));
+    }
+  };
 
   const loadEntry = async () => {
     setLoading(true);
+    // Stop any ongoing speech when navigating
+    stopSpeaking();
+    setSpeechState(null);
     try {
       const e = await getEntryById(entryId);
       if (e) {
@@ -275,6 +339,40 @@ export default function EntryDetail({
           <div className="flex items-center gap-3">
             <h2 className="text-3xl font-bold text-[#1e293b]">{entry.term}</h2>
             <button
+              onClick={() => handleSpeak(entry.term, 'term')}
+              className={`p-2 transition-colors ${speechState?.id === 'term' ? 'text-[#BF3143]' : 'text-[#64748b] hover:text-[#BF3143]'}`}
+              title={speechState?.id === 'term' ? (speechState.status === 'playing' ? 'Pause' : 'Resume') : 'Read aloud'}
+            >
+              {speechState?.id === 'term' && speechState.status === 'playing' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+              ) : speechState?.id === 'term' && speechState.status === 'paused' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              )}
+            </button>
+            {speechState?.id === 'term' && speechState.status === 'paused' && (
+              <button
+                onClick={handleReplay}
+                className="p-2 text-[#64748b] hover:text-[#BF3143] transition-colors"
+                title="Replay from start"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              </button>
+            )}
+            <button
               onClick={handleTranslateTerm}
               disabled={isTranslatingTerm}
               className="p-2 text-[#64748b] hover:text-[#BF3143] transition-colors disabled:opacity-50"
@@ -366,26 +464,61 @@ export default function EntryDetail({
               <h3 className="text-sm font-medium text-[#64748b]">
                 Source Sentence
               </h3>
-              <button
-                onClick={handleTranslateSource}
-                disabled={isTranslatingSource}
-                className="p-1 text-[#64748b] hover:text-[#BF3143] transition-colors disabled:opacity-50"
-                title="Translate to Korean"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleSpeak(entry.sourceSentence!, 'source')}
+                  className={`p-1 transition-colors ${speechState?.id === 'source' ? 'text-[#BF3143]' : 'text-[#64748b] hover:text-[#BF3143]'}`}
+                  title={speechState?.id === 'source' ? (speechState.status === 'playing' ? 'Pause' : 'Resume') : 'Read aloud'}
                 >
-                  <path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
-                </svg>
-              </button>
+                  {speechState?.id === 'source' && speechState.status === 'playing' ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : speechState?.id === 'source' && speechState.status === 'paused' ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    </svg>
+                  )}
+                </button>
+                {speechState?.id === 'source' && speechState.status === 'paused' && (
+                  <button
+                    onClick={handleReplay}
+                    className="p-1 text-[#64748b] hover:text-[#BF3143] transition-colors"
+                    title="Replay from start"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  onClick={handleTranslateSource}
+                  disabled={isTranslatingSource}
+                  className="p-1 text-[#64748b] hover:text-[#BF3143] transition-colors disabled:opacity-50"
+                  title="Translate to Korean"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <p className="text-[#1e293b] leading-relaxed">
               {highlightTerm(entry.sourceSentence, entry.term)}
@@ -422,6 +555,41 @@ export default function EntryDetail({
                   <p className="text-[#1e293b] mb-3">{example.text}</p>
                   <div className="flex items-center justify-end">
                     <div className="flex items-center gap-2">
+                      {/* Read Aloud */}
+                      <button
+                        onClick={() => handleSpeak(example.text, `example-${example.id}`)}
+                        className={`p-1 transition-colors ${speechState?.id === `example-${example.id}` ? 'text-[#BF3143]' : 'text-[#9CA3AF] hover:text-[#BF3143]'}`}
+                        title={speechState?.id === `example-${example.id}` ? (speechState.status === 'playing' ? 'Pause' : 'Resume') : 'Read aloud'}
+                      >
+                        {speechState?.id === `example-${example.id}` && speechState.status === 'playing' ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="4" width="4" height="16" rx="1" />
+                            <rect x="14" y="4" width="4" height="16" rx="1" />
+                          </svg>
+                        ) : speechState?.id === `example-${example.id}` && speechState.status === 'paused' ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                          </svg>
+                        )}
+                      </button>
+                      {speechState?.id === `example-${example.id}` && speechState.status === 'paused' && (
+                        <button
+                          onClick={handleReplay}
+                          className="p-1 text-[#9CA3AF] hover:text-[#BF3143] transition-colors"
+                          title="Replay from start"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                          </svg>
+                        </button>
+                      )}
+
                       {/* Save Toggle */}
                       <button
                         onClick={() =>
