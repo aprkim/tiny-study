@@ -70,6 +70,8 @@ export async function updateEntry(
       | "lastReviewedAt"
       | "correctCount"
       | "incorrectCount"
+      | "termTranslation"
+      | "sourceTranslation"
     >
   >
 ): Promise<Entry | undefined> {
@@ -209,7 +211,7 @@ export async function addExamples(
 
 export async function updateExample(
   id: string,
-  updates: Partial<Pick<GeneratedExample, "savedFlag" | "text">>
+  updates: Partial<Pick<GeneratedExample, "savedFlag" | "text" | "translation">>
 ): Promise<GeneratedExample | undefined> {
   const userId = getUserId();
   const exampleRef = doc(db, "users", userId, "examples", id);

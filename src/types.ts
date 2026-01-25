@@ -15,6 +15,8 @@ export interface Entry {
   lastReviewedAt?: number;
   correctCount?: number;
   incorrectCount?: number;
+  termTranslation?: string;
+  sourceTranslation?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -25,5 +27,6 @@ export interface GeneratedExample {
   text: string;
   style: ExampleStyle;
   savedFlag: boolean;
+  translation?: string;
   createdAt: string;
 }

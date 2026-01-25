@@ -3,7 +3,6 @@ import { Entry } from "../types";
 import { getEntries, searchEntries, updateEntry } from "../storage";
 
 interface HomeProps {
-  onAddNew: () => void;
   onSelectEntry: (id: string) => void;
 }
 
@@ -17,7 +16,7 @@ const typeBgColors: Record<string, string> = {
 
 type TypeFilter = "all" | "learn" | "capture";
 
-export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
+export default function Home({ onSelectEntry }: HomeProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [hideMastered, setHideMastered] = useState(true);
@@ -91,19 +90,8 @@ export default function Home({ onAddNew, onSelectEntry }: HomeProps) {
 
   return (
     <div className="max-w-md mx-auto px-4 py-6 pb-24">
-      <header className="flex items-center justify-between mb-6">
-        <a
-          href="https://tinywins.space"
-          className="text-2xl font-semibold text-[#1e293b] hover:text-[#BF3143] transition-colors"
-        >
-          Study
-        </a>
-        <button
-          onClick={onAddNew}
-          className="px-4 py-2 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
-        >
-          Add New
-        </button>
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold text-[#1e293b]">Review</h1>
       </header>
 
       {/* Search */}

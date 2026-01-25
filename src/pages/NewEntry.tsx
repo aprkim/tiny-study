@@ -2,22 +2,25 @@ import { useState } from "react";
 import { Entry } from "../types";
 import { saveEntry, generateId, updateEntry } from "../storage";
 import { explainEntry } from "../lib/explain";
+import { TrialExhaustedError } from "../lib/aiService";
 
 interface NewEntryProps {
-  onBack: () => void;
   onSaved: () => void;
   onSavedWithIds: (ids: string[]) => void;
+  onNavigateSettings: () => void;
 }
 
 type Mode = "learn" | "capture";
 
-export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryProps) {
+export default function NewEntry({ onSaved, onSavedWithIds, onNavigateSettings }: NewEntryProps) {
   const [mode, setMode] = useState<Mode>("learn");
   const [terms, setTerms] = useState<string[]>([""]);
   const [sourceSentence, setSourceSentence] = useState("");
   const [captureText, setCaptureText] = useState("");
   const [errors, setErrors] = useState<{ terms?: Record<number, string>; sourceSentence?: string; captureText?: string }>({});
   const [isExplaining, setIsExplaining] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  const [showTrialExhausted, setShowTrialExhausted] = useState(false);
 
   const addTermField = () => {
     setTerms((prev) => [...prev, ""]);
@@ -100,12 +103,17 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
           await saveEntry(entry);
         }
       }
+      setTerms([""]);
+      setSourceSentence("");
     } else {
       if (!validateCapture()) return;
       const entry = createCaptureEntry();
       await saveEntry(entry);
+      setCaptureText("");
     }
-    onSaved();
+    setErrors({});
+    setShowSaved(true);
+    setTimeout(() => setShowSaved(false), 2000);
   };
 
   const handleSaveAndExplain = async () => {
@@ -137,32 +145,22 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
         onSavedWithIds(entries.map((e) => e.id));
       }
     } catch (error) {
+      if (error instanceof TrialExhaustedError) {
+        setShowTrialExhausted(true);
+        // Still navigate to the entries (they were saved, just without explanations)
+        if (terms.filter((t) => t.trim()).length > 0) {
+          onSaved();
+        }
+        return;
+      }
       console.error("Failed to explain:", error);
       setIsExplaining(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6">
-      <header className="flex items-center gap-4 mb-8">
-        <button
-          onClick={onBack}
-          className="text-[#64748b] hover:text-[#1e293b] transition-colors"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
+    <div className="max-w-md mx-auto px-4 py-6 pb-24">
+      <header className="mb-6">
         <h1 className="text-2xl font-semibold text-[#1e293b]">Add New</h1>
       </header>
 
@@ -304,10 +302,14 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
               </button>
               <button
                 onClick={handleSave}
-                disabled={isExplaining}
-                className="w-full px-4 py-3 bg-[#f0f4f3] text-[#1e293b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isExplaining || showSaved}
+                className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
+                  showSaved
+                    ? "bg-[#E7F1EB] text-[#3F6B52]"
+                    : "bg-[#f0f4f3] text-[#1e293b] hover:bg-[#e2e8f0] disabled:opacity-50 disabled:cursor-not-allowed"
+                }`}
               >
-                Save Only
+                {showSaved ? "Saved" : "Save Only"}
               </button>
             </div>
           </>
@@ -340,13 +342,58 @@ export default function NewEntry({ onBack, onSaved, onSavedWithIds }: NewEntryPr
 
             <button
               onClick={handleSave}
-              className="w-full px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium hover:bg-[#a52a3a] transition-colors"
+              disabled={showSaved}
+              className={`w-full px-4 py-3 rounded-lg font-medium transition-colors ${
+                showSaved
+                  ? "bg-[#E7F1EB] text-[#3F6B52]"
+                  : "bg-[#BF3143] text-white hover:bg-[#a52a3a]"
+              }`}
             >
-              Save
+              {showSaved ? "Saved" : "Save"}
             </button>
           </>
         )}
       </div>
+
+      {/* Trial Exhausted Modal */}
+      {showTrialExhausted && (
+        <div className="fixed inset-0 bg-[rgba(30,41,59,0.5)] flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-[#1e293b] mb-2">
+              Free Trial Used Up
+            </h3>
+            <p className="text-[#64748b] mb-5">
+              You've used all 20 free AI requests. Your entry was saved, but without AI explanation. To keep using AI features:
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setShowTrialExhausted(false);
+                  onNavigateSettings();
+                }}
+                className="w-full text-left bg-[#F7F5FA] rounded-lg p-3 hover:bg-[#eee9f3] transition-colors"
+              >
+                <p className="font-medium text-[#1e293b] text-sm">Add your own API key</p>
+                <p className="text-xs text-[#64748b] mt-1">
+                  Get a key from console.anthropic.com and add it in Settings.
+                </p>
+              </button>
+              <button
+                onClick={() => {
+                  setShowTrialExhausted(false);
+                  onNavigateSettings();
+                }}
+                className="w-full text-left bg-[#E7F1EB] rounded-lg p-3 hover:bg-[#d4e8dc] transition-colors"
+              >
+                <p className="font-medium text-[#1e293b] text-sm">Subscribe for unlimited access</p>
+                <p className="text-xs text-[#64748b] mt-1">
+                  $2/month or $12/year — coming soon!
+                </p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

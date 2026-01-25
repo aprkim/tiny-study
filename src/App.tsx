@@ -7,27 +7,34 @@ import Settings from "./pages/Settings";
 import Mastered from "./pages/Mastered";
 import { useAuth } from "./contexts/AuthContext";
 
-type Page = "home" | "new" | "detail" | "edit" | "settings" | "mastered";
-type Tab = "study" | "mastered" | "settings";
+type Page = "add" | "review" | "detail" | "edit" | "settings" | "mastered";
+type Tab = "add" | "review" | "mastered" | "settings";
 
 function App() {
   const { user, loading } = useAuth();
-  const [page, setPage] = useState<Page>("home");
-  const [activeTab, setActiveTab] = useState<Tab>("study");
+  const [page, setPage] = useState<Page>("add");
+  const [activeTab, setActiveTab] = useState<Tab>("add");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [newEntryKey, setNewEntryKey] = useState(0);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
 
-  const navigateHome = () => {
+  const navigateReview = () => {
     setRefreshKey((k) => k + 1);
-    setPage("home");
-    setActiveTab("study");
+    setPage("review");
+    setActiveTab("review");
     setSelectedEntryId(null);
     setSelectedEntryIds([]);
   };
 
   const handleSaved = () => {
-    navigateHome();
+    // After "Save Only", reset the form and stay on Add tab
+    setNewEntryKey((k) => k + 1);
+  };
+
+  const navigateSettings = () => {
+    setPage("settings");
+    setActiveTab("settings");
   };
 
   const handleSavedWithIds = (ids: string[]) => {
@@ -45,9 +52,11 @@ function App() {
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
-    if (tab === "study") {
+    if (tab === "add") {
+      setPage("add");
+    } else if (tab === "review") {
       setRefreshKey((k) => k + 1);
-      setPage("home");
+      setPage("review");
     } else if (tab === "mastered") {
       setPage("mastered");
     } else if (tab === "settings") {
@@ -56,8 +65,8 @@ function App() {
     setSelectedEntryId(null);
   };
 
-  // Check if we should show bottom tabs (not on detail pages like new, detail, edit)
-  const showBottomTabs = page === "home" || page === "mastered" || page === "settings";
+  // Check if we should show bottom tabs (not on detail/edit pages)
+  const showBottomTabs = page === "add" || page === "review" || page === "mastered" || page === "settings";
 
   // Show loading state while checking auth (including anonymous sign-in)
   if (loading || !user) {
@@ -70,27 +79,28 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#f7f9f8]">
-      {page === "home" && (
-        <Home
-          key={refreshKey}
-          onAddNew={() => setPage("new")}
-          onSelectEntry={handleSelectEntry}
-        />
-      )}
-      {page === "new" && (
+      {page === "add" && (
         <NewEntry
-          onBack={navigateHome}
+          key={newEntryKey}
           onSaved={handleSaved}
           onSavedWithIds={handleSavedWithIds}
+          onNavigateSettings={navigateSettings}
+        />
+      )}
+      {page === "review" && (
+        <Home
+          key={refreshKey}
+          onSelectEntry={handleSelectEntry}
         />
       )}
       {page === "detail" && selectedEntryId && (
         <EntryDetail
           entryId={selectedEntryId}
           entryIds={selectedEntryIds}
-          onBack={navigateHome}
-          onDeleted={navigateHome}
+          onBack={navigateReview}
+          onDeleted={navigateReview}
           onNavigate={(id) => setSelectedEntryId(id)}
+          onNavigateSettings={navigateSettings}
         />
       )}
       {page === "edit" && selectedEntryId && (
@@ -109,10 +119,34 @@ function App() {
       {showBottomTabs && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e2e8f0]">
           <div className="max-w-md mx-auto flex">
+            {/* Add Tab */}
             <button
-              onClick={() => handleTabChange("study")}
+              onClick={() => handleTabChange("add")}
               className={`flex-1 flex flex-col items-center py-3 ${
-                activeTab === "study" ? "text-[#BF3143]" : "text-[#9CA3AF]"
+                activeTab === "add" ? "text-[#BF3143]" : "text-[#9CA3AF]"
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v8M8 12h8" />
+              </svg>
+              <span className="text-xs mt-1 font-medium">Add</span>
+            </button>
+            {/* Review Tab */}
+            <button
+              onClick={() => handleTabChange("review")}
+              className={`flex-1 flex flex-col items-center py-3 ${
+                activeTab === "review" ? "text-[#BF3143]" : "text-[#9CA3AF]"
               }`}
             >
               <svg
@@ -129,8 +163,9 @@ function App() {
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
               </svg>
-              <span className="text-xs mt-1 font-medium">Study</span>
+              <span className="text-xs mt-1 font-medium">Review</span>
             </button>
+            {/* Mastered Tab */}
             <button
               onClick={() => handleTabChange("mastered")}
               className={`flex-1 flex flex-col items-center py-3 ${
@@ -153,6 +188,7 @@ function App() {
               </svg>
               <span className="text-xs mt-1 font-medium">Mastered</span>
             </button>
+            {/* Settings Tab */}
             <button
               onClick={() => handleTabChange("settings")}
               className={`flex-1 flex flex-col items-center py-3 ${

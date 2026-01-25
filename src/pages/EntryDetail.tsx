@@ -11,6 +11,7 @@ import {
 } from "../storage";
 import { generateExamples } from "../lib/generateExamples";
 import { translateToKorean } from "../lib/translate";
+import { TrialExhaustedError } from "../lib/aiService";
 
 interface EntryDetailProps {
   entryId: string;
@@ -18,6 +19,7 @@ interface EntryDetailProps {
   onBack: () => void;
   onDeleted: () => void;
   onNavigate?: (id: string) => void;
+  onNavigateSettings?: () => void;
 }
 
 const typePillStyles: Record<string, string> = {
@@ -105,6 +107,7 @@ export default function EntryDetail({
   onBack,
   onDeleted,
   onNavigate,
+  onNavigateSettings,
 }: EntryDetailProps) {
   const [entry, setEntry] = useState<Entry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -114,9 +117,12 @@ export default function EntryDetail({
   const [isGenerating, setIsGenerating] = useState(false);
   const [termTranslation, setTermTranslation] = useState<string>("");
   const [sourceTranslation, setSourceTranslation] = useState<string>("");
+  const [exampleTranslations, setExampleTranslations] = useState<Record<string, string>>({});
   const [isTranslatingTerm, setIsTranslatingTerm] = useState(false);
   const [isTranslatingSource, setIsTranslatingSource] = useState(false);
+  const [translatingExampleId, setTranslatingExampleId] = useState<string | null>(null);
   const [speechState, setSpeechState] = useState<{ id: string; status: 'playing' | 'paused'; text: string } | null>(null);
+  const [showTrialExhausted, setShowTrialExhausted] = useState(false);
 
   const handleSpeak = (text: string, id: string) => {
     if (speechState?.id === id) {
@@ -153,12 +159,21 @@ export default function EntryDetail({
       const e = await getEntryById(entryId);
       if (e) {
         setEntry(e);
+        setTermTranslation(e.termTranslation || "");
+        setSourceTranslation(e.sourceTranslation || "");
+      } else {
+        setTermTranslation("");
+        setSourceTranslation("");
       }
       const examplesList = await listExamples(entryId);
       setExamples(examplesList);
-      // Reset translations when navigating to a new entry
-      setTermTranslation("");
-      setSourceTranslation("");
+      const savedTranslations: Record<string, string> = {};
+      for (const ex of examplesList) {
+        if (ex.translation) {
+          savedTranslations[ex.id] = ex.translation;
+        }
+      }
+      setExampleTranslations(savedTranslations);
     } catch (error) {
       console.error("Failed to load entry:", error);
     } finally {
@@ -230,6 +245,10 @@ export default function EntryDetail({
       const newExamples = await addExamples(entryId, "neutral", texts);
       setExamples((prev) => [...prev, ...newExamples]);
     } catch (error) {
+      if (error instanceof TrialExhaustedError) {
+        setShowTrialExhausted(true);
+        return;
+      }
       console.error("Failed to generate examples:", error);
     } finally {
       setIsGenerating(false);
@@ -261,7 +280,12 @@ export default function EntryDetail({
     try {
       const translation = await translateToKorean(entry.term, entry.sourceSentence);
       setTermTranslation(translation);
+      await updateEntry(entryId, { termTranslation: translation });
     } catch (error) {
+      if (error instanceof TrialExhaustedError) {
+        setShowTrialExhausted(true);
+        return;
+      }
       console.error("Translation failed:", error);
       setTermTranslation("[번역 실패]");
     } finally {
@@ -275,11 +299,34 @@ export default function EntryDetail({
     try {
       const translation = await translateToKorean(entry.sourceSentence);
       setSourceTranslation(translation);
+      await updateEntry(entryId, { sourceTranslation: translation });
     } catch (error) {
+      if (error instanceof TrialExhaustedError) {
+        setShowTrialExhausted(true);
+        return;
+      }
       console.error("Translation failed:", error);
       setSourceTranslation("[번역 실패]");
     } finally {
       setIsTranslatingSource(false);
+    }
+  };
+
+  const handleTranslateExample = async (exampleId: string, text: string) => {
+    setTranslatingExampleId(exampleId);
+    try {
+      const translation = await translateToKorean(text);
+      setExampleTranslations((prev) => ({ ...prev, [exampleId]: translation }));
+      await updateExample(exampleId, { translation });
+    } catch (error) {
+      if (error instanceof TrialExhaustedError) {
+        setShowTrialExhausted(true);
+        return;
+      }
+      console.error("Translation failed:", error);
+      setExampleTranslations((prev) => ({ ...prev, [exampleId]: "[번역 실패]" }));
+    } finally {
+      setTranslatingExampleId(null);
     }
   };
 
@@ -552,7 +599,12 @@ export default function EntryDetail({
                   key={example.id}
                   className="bg-white border border-[#e2e8f0] rounded-lg p-4"
                 >
-                  <p className="text-[#1e293b] mb-3">{example.text}</p>
+                  <p className="text-[#1e293b] mb-2">{example.text}</p>
+                  {exampleTranslations[example.id] && (
+                    <p className="text-[#64748b] text-sm mb-3 pt-2 border-t border-[#e2e8f0]">
+                      {exampleTranslations[example.id]}
+                    </p>
+                  )}
                   <div className="flex items-center justify-end">
                     <div className="flex items-center gap-2">
                       {/* Read Aloud */}
@@ -589,6 +641,28 @@ export default function EntryDetail({
                           </svg>
                         </button>
                       )}
+
+                      {/* Translate */}
+                      <button
+                        onClick={() => handleTranslateExample(example.id, example.text)}
+                        disabled={translatingExampleId === example.id}
+                        className="p-1 text-[#9CA3AF] hover:text-[#BF3143] transition-colors disabled:opacity-50"
+                        title="Translate to Korean"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" />
+                        </svg>
+                      </button>
 
                       {/* Save Toggle */}
                       <button
@@ -734,6 +808,46 @@ export default function EntryDetail({
                 className="flex-1 px-4 py-3 bg-[#BF3143] text-white rounded-lg font-medium"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trial Exhausted Modal */}
+      {showTrialExhausted && (
+        <div className="fixed inset-0 bg-[rgba(30,41,59,0.5)] flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-[#1e293b] mb-2">
+              Free Trial Used Up
+            </h3>
+            <p className="text-[#64748b] mb-5">
+              You've used all 20 free AI requests. To keep using AI-powered features, you can:
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setShowTrialExhausted(false);
+                  onNavigateSettings?.();
+                }}
+                className="w-full text-left bg-[#F7F5FA] rounded-lg p-3 hover:bg-[#eee9f3] transition-colors"
+              >
+                <p className="font-medium text-[#1e293b] text-sm">Add your own API key</p>
+                <p className="text-xs text-[#64748b] mt-1">
+                  Get a key from console.anthropic.com and add it in Settings.
+                </p>
+              </button>
+              <button
+                onClick={() => {
+                  setShowTrialExhausted(false);
+                  onNavigateSettings?.();
+                }}
+                className="w-full text-left bg-[#E7F1EB] rounded-lg p-3 hover:bg-[#d4e8dc] transition-colors"
+              >
+                <p className="font-medium text-[#1e293b] text-sm">Subscribe for unlimited access</p>
+                <p className="text-xs text-[#64748b] mt-1">
+                  $2/month or $12/year — coming soon!
+                </p>
               </button>
             </div>
           </div>

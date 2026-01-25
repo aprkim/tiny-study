@@ -3,6 +3,7 @@ import { getApiKey, setApiKey, clearApiKey, hasApiKey } from "../lib/anthropic";
 import { useAuth } from "../contexts/AuthContext";
 import { getEntries, getAllExamplesForExport, saveEntries, saveExamples } from "../storage";
 import { Entry, GeneratedExample } from "../types";
+import { getUsageStatus, UsageStatus } from "../lib/aiService";
 
 interface BackupData {
   entries: Entry[];
@@ -23,6 +24,7 @@ export default function Settings() {
   const [password, setPassword] = useState("");
   const [accountError, setAccountError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usageStatus, setUsageStatus] = useState<UsageStatus | null>(null);
   const [modal, setModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -84,6 +86,8 @@ export default function Settings() {
     if (existingKey) {
       setApiKeyInput(existingKey);
     }
+    // Fetch trial usage status
+    getUsageStatus().then(setUsageStatus).catch(console.warn);
   }, []);
 
   const handleSave = () => {
@@ -288,6 +292,44 @@ export default function Settings() {
           )}
         </div>
 
+        {/* AI Trial Usage Section */}
+        {usageStatus && (
+          <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
+            <h2 className="font-semibold text-[#1e293b] mb-2">AI Usage</h2>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-[#64748b]">
+                Free trial: {usageStatus.used} / {usageStatus.limit} used
+              </span>
+              <span className={`text-sm font-medium ${
+                usageStatus.trialExhausted
+                  ? 'text-[#BF3143]'
+                  : usageStatus.used / usageStatus.limit > 0.7
+                    ? 'text-[#6E6282]'
+                    : 'text-[#3F6B52]'
+              }`}>
+                {usageStatus.remaining} remaining
+              </span>
+            </div>
+            <div className="w-full h-3 bg-[#f0f4f3] rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  usageStatus.trialExhausted
+                    ? 'bg-[#BF3143]'
+                    : usageStatus.used / usageStatus.limit > 0.7
+                      ? 'bg-[#6E6282]'
+                      : 'bg-[#3F6B52]'
+                }`}
+                style={{ width: `${Math.min((usageStatus.used / usageStatus.limit) * 100, 100)}%` }}
+              />
+            </div>
+            {usageStatus.trialExhausted && (
+              <p className="text-sm text-[#BF3143] mt-2">
+                Free trial exhausted. Add your own API key below to continue using AI features.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* API Key Section */}
         <div className="bg-white border border-[#e2e8f0] rounded-lg p-4">
           <h2 className="font-semibold text-[#1e293b] mb-2">
@@ -370,6 +412,30 @@ export default function Settings() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Subscribe Section */}
+        <div className="bg-[#E7F1EB] border border-[#C8DCD0] rounded-lg p-4">
+          <h2 className="font-semibold text-[#1e293b] mb-1">Subscribe</h2>
+          <p className="text-sm text-[#64748b] mb-4">
+            Unlimited AI explanations, examples, and translations.
+          </p>
+          <div className="flex gap-3 mb-4">
+            <div className="flex-1 bg-white rounded-lg p-3 text-center">
+              <p className="text-lg font-bold text-[#1e293b]">$2</p>
+              <p className="text-xs text-[#64748b]">/ month</p>
+            </div>
+            <div className="flex-1 bg-white rounded-lg p-3 text-center">
+              <p className="text-lg font-bold text-[#1e293b]">$12</p>
+              <p className="text-xs text-[#64748b]">/ year</p>
+            </div>
+          </div>
+          <button
+            className="w-full px-4 py-3 bg-[#3F6B52] text-white rounded-lg font-medium opacity-50 cursor-not-allowed"
+            disabled
+          >
+            Coming Soon
+          </button>
         </div>
 
         {/* Info Section */}

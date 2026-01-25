@@ -1,5 +1,5 @@
 import { EntryType, ExampleStyle } from "../types";
-import { aiComplete, hasAICapability } from "./aiService";
+import { aiComplete, TrialExhaustedError } from "./aiService";
 
 interface GenerateParams {
   term: string;
@@ -13,17 +13,12 @@ export async function generateExamples(
 ): Promise<string[]> {
   const { term, type, style, sourceSentence } = params;
 
-  // Check if AI capability is available (trial or user's API key)
-  const hasCapability = await hasAICapability();
-  if (!hasCapability) {
-    return getFallbackExamples(term, type);
-  }
-
   try {
     const prompt = buildPrompt(term, type, style, sourceSentence);
     const responseText = await aiComplete(prompt, 800);
     return parseExamples(responseText);
   } catch (error) {
+    if (error instanceof TrialExhaustedError) throw error;
     console.error("AI example generation failed:", error);
     return getFallbackExamples(term, type);
   }

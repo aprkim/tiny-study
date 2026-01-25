@@ -1,5 +1,5 @@
 import { EntryType } from "../types";
-import { aiComplete, hasAICapability } from "./aiService";
+import { aiComplete, TrialExhaustedError } from "./aiService";
 
 interface ExplainInput {
   type: EntryType;
@@ -15,17 +15,12 @@ interface ExplainOutput {
 export async function explainEntry(input: ExplainInput): Promise<ExplainOutput> {
   const { type, term, sourceSentence } = input;
 
-  // Check if AI capability is available (trial or user's API key)
-  const hasCapability = await hasAICapability();
-  if (!hasCapability) {
-    return getFallbackExplanation(input);
-  }
-
   try {
     const prompt = buildPrompt(type, term, sourceSentence);
     const responseText = await aiComplete(prompt, 500);
     return parseResponse(responseText);
   } catch (error) {
+    if (error instanceof TrialExhaustedError) throw error;
     console.error("AI explanation failed:", error);
     return getFallbackExplanation(input);
   }

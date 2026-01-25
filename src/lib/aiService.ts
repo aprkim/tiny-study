@@ -12,34 +12,50 @@ interface AICompleteResponse {
   remaining: number
 }
 
-interface UsageStatus {
+export interface UsageStatus {
   used: number
   limit: number
   remaining: number
   trialExhausted: boolean
 }
 
+// Custom error for trial exhaustion
+export class TrialExhaustedError extends Error {
+  constructor() {
+    super('Trial limit reached')
+    this.name = 'TrialExhaustedError'
+  }
+}
+
 // Try Cloud Function first, fall back to user's own API key
 export async function aiComplete(prompt: string, maxTokens = 800): Promise<string> {
+  console.log('[AI] aiComplete called, maxTokens:', maxTokens)
+
   // First, try the Cloud Function (uses our API key with trial limits)
   try {
+    console.log('[AI] Calling Cloud Function...')
     const callable = httpsCallable<AICompleteRequest, AICompleteResponse>(functions, 'aiComplete')
     const result = await callable({ prompt, maxTokens })
+    console.log('[AI] Cloud Function success, remaining:', result.data.remaining)
     return result.data.text
   } catch (error: unknown) {
+    const err = error as { code?: string; details?: { trialExhausted?: boolean }; message?: string }
+    console.warn('[AI] Cloud Function error:', err.code, err.message)
+
     // Check if trial exhausted
-    const err = error as { code?: string; details?: { trialExhausted?: boolean } }
     if (err.code === 'functions/resource-exhausted' || err.details?.trialExhausted) {
+      console.log('[AI] Trial exhausted')
       // Trial exhausted, try user's own API key
       if (hasApiKey()) {
+        console.log('[AI] Falling back to user API key')
         return aiCompleteWithUserKey(prompt, maxTokens)
       }
-      throw new Error('Trial limit reached. Please add your own API key in Settings.')
+      throw new TrialExhaustedError()
     }
 
     // Other errors - try user's own API key as fallback
     if (hasApiKey()) {
-      console.warn('Cloud Function failed, using user API key:', error)
+      console.warn('[AI] Cloud Function failed, using user API key:', error)
       return aiCompleteWithUserKey(prompt, maxTokens)
     }
 
@@ -66,10 +82,13 @@ async function aiCompleteWithUserKey(prompt: string, maxTokens: number): Promise
 // Get usage status from Cloud Function
 export async function getUsageStatus(): Promise<UsageStatus> {
   try {
+    console.log('[AI] Fetching usage status...')
     const callable = httpsCallable<unknown, UsageStatus>(functions, 'getUsageStatus')
     const result = await callable({})
+    console.log('[AI] Usage status:', result.data)
     return result.data
-  } catch {
+  } catch (error) {
+    console.warn('[AI] Failed to get usage status:', error)
     // If call fails, assume trial is available
     return {
       used: 0,
@@ -82,11 +101,16 @@ export async function getUsageStatus(): Promise<UsageStatus> {
 
 // Check if user has any AI capability (trial remaining OR own API key)
 export async function hasAICapability(): Promise<boolean> {
-  if (hasApiKey()) return true
+  if (hasApiKey()) {
+    console.log('[AI] User has own API key')
+    return true
+  }
 
   try {
     const status = await getUsageStatus()
-    return !status.trialExhausted
+    const capable = !status.trialExhausted
+    console.log('[AI] hasAICapability:', capable, `(${status.used}/${status.limit})`)
+    return capable
   } catch {
     return false
   }
