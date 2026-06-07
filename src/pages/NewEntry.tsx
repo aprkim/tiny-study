@@ -202,7 +202,7 @@ export default function NewEntry({ onSaved, onSavedWithIds, onNavigateSettings }
               <textarea
                 value={sourceSentence}
                 onChange={(e) => {
-                  setSourceSentence(e.target.value.trim());
+                  setSourceSentence(e.target.value);
                   if (errors.sourceSentence)
                     setErrors((prev) => ({ ...prev, sourceSentence: undefined }));
                 }}
@@ -325,7 +325,7 @@ export default function NewEntry({ onSaved, onSavedWithIds, onNavigateSettings }
               <textarea
                 value={captureText}
                 onChange={(e) => {
-                  setCaptureText(e.target.value.trim());
+                  setCaptureText(e.target.value);
                   if (errors.captureText)
                     setErrors((prev) => ({ ...prev, captureText: undefined }));
                 }}
