@@ -8,29 +8,30 @@ const params_1 = require("firebase-functions/params");
 admin.initializeApp();
 const db = admin.firestore();
 const TRIAL_LIMIT = 20;
+const MODEL = "claude-sonnet-5";
 const anthropicKey = (0, params_1.defineSecret)("ANTHROPIC_API_KEY");
-// Check and increment usage, returns remaining calls or -1 if over limit
-async function checkAndIncrementUsage(userId) {
-    const userRef = db.collection("users").doc(userId).collection("usage").doc("ai");
-    return db.runTransaction(async (transaction) => {
-        var _a;
-        const doc = await transaction.get(userRef);
-        const currentCount = doc.exists ? (((_a = doc.data()) === null || _a === void 0 ? void 0 : _a.count) || 0) : 0;
-        if (currentCount >= TRIAL_LIMIT) {
-            return -1; // Over limit
-        }
-        transaction.set(userRef, {
-            count: currentCount + 1,
-            lastUsed: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
-        return TRIAL_LIMIT - currentCount - 1; // Remaining calls after this one
-    });
+function usageRef(userId) {
+    return db.collection("users").doc(userId).collection("usage").doc("ai");
 }
 // Get current usage count
 async function getUsageCount(userId) {
     var _a;
-    const doc = await db.collection("users").doc(userId).collection("usage").doc("ai").get();
+    const doc = await usageRef(userId).get();
     return doc.exists ? (((_a = doc.data()) === null || _a === void 0 ? void 0 : _a.count) || 0) : 0;
+}
+// Increment usage after a successful AI call, returns remaining calls
+async function incrementUsage(userId) {
+    return db.runTransaction(async (transaction) => {
+        var _a;
+        const ref = usageRef(userId);
+        const doc = await transaction.get(ref);
+        const currentCount = doc.exists ? (((_a = doc.data()) === null || _a === void 0 ? void 0 : _a.count) || 0) : 0;
+        transaction.set(ref, {
+            count: currentCount + 1,
+            lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        return Math.max(0, TRIAL_LIMIT - currentCount - 1);
+    });
 }
 // AI completion endpoint
 exports.aiComplete = (0, https_1.onCall)({ secrets: [anthropicKey] }, async (request) => {
@@ -45,28 +46,31 @@ exports.aiComplete = (0, https_1.onCall)({ secrets: [anthropicKey] }, async (req
     if (!apiKey) {
         throw new https_1.HttpsError("failed-precondition", "AI service not configured");
     }
-    // Check usage limit
-    const remaining = await checkAndIncrementUsage(userId);
-    if (remaining < 0) {
+    // Check usage limit before calling the model
+    const used = await getUsageCount(userId);
+    if (used >= TRIAL_LIMIT) {
         throw new https_1.HttpsError("resource-exhausted", "Trial limit reached. Please add your own API key in Settings.", { trialExhausted: true });
     }
+    let responseText;
     try {
         const client = new sdk_1.default({ apiKey });
         const message = await client.messages.create({
-            model: "claude-sonnet-4-20250514",
+            model: MODEL,
             max_tokens: data.maxTokens || 800,
             messages: [{ role: "user", content: data.prompt }],
         });
-        const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-        return {
-            text: responseText,
-            remaining: remaining,
-        };
+        responseText = message.content[0].type === "text" ? message.content[0].text : "";
     }
     catch (error) {
         console.error("Anthropic API error:", error);
         throw new https_1.HttpsError("internal", "AI service error");
     }
+    // Only count the call once the model actually answered
+    const remaining = await incrementUsage(userId);
+    return {
+        text: responseText,
+        remaining,
+    };
 });
 // Get usage status
 exports.getUsageStatus = (0, https_1.onCall)(async (request) => {
