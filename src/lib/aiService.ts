@@ -76,7 +76,8 @@ async function aiCompleteWithUserKey(prompt: string, maxTokens: number): Promise
     messages: [{ role: 'user', content: prompt }],
   })
 
-  return message.content[0].type === 'text' ? message.content[0].text : ''
+  const textBlock = message.content.find((block) => block.type === 'text')
+  return textBlock && textBlock.type === 'text' ? textBlock.text : ''
 }
 
 // Get usage status from Cloud Function

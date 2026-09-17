@@ -79,7 +79,8 @@ export const aiComplete = onCall(
         messages: [{ role: "user", content: data.prompt }],
       });
 
-      responseText = message.content[0].type === "text" ? message.content[0].text : "";
+      const textBlock = message.content.find((block) => block.type === "text");
+      responseText = textBlock && textBlock.type === "text" ? textBlock.text : "";
     } catch (error) {
       console.error("Anthropic API error:", error);
       throw new HttpsError("internal", "AI service error");
