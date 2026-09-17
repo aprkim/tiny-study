@@ -73,6 +73,7 @@ async function aiCompleteWithUserKey(prompt: string, maxTokens: number): Promise
   const message = await client.messages.create({
     model: 'claude-sonnet-5',
     max_tokens: maxTokens,
+    thinking: { type: 'disabled' },
     messages: [{ role: 'user', content: prompt }],
   })
 

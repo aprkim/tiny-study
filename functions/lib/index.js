@@ -57,6 +57,8 @@ exports.aiComplete = (0, https_1.onCall)({ secrets: [anthropicKey] }, async (req
         const message = await client.messages.create({
             model: MODEL,
             max_tokens: data.maxTokens || 800,
+            // Short utility prompts: thinking would eat the small token budget
+            thinking: { type: "disabled" },
             messages: [{ role: "user", content: data.prompt }],
         });
         const textBlock = message.content.find((block) => block.type === "text");

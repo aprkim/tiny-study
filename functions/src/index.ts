@@ -76,6 +76,8 @@ export const aiComplete = onCall(
       const message = await client.messages.create({
         model: MODEL,
         max_tokens: data.maxTokens || 800,
+        // Short utility prompts: thinking would eat the small token budget
+        thinking: { type: "disabled" },
         messages: [{ role: "user", content: data.prompt }],
       });
 
